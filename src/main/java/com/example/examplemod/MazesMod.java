@@ -1,9 +1,13 @@
 package com.example.examplemod;
 
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 import static net.minecraft.core.registries.Registries.DIMENSION;
 import static net.minecraft.core.registries.Registries.DIMENSION_TYPE;
 
+import java.util.ArrayList;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.function.Function;
 
 import com.mojang.brigadier.arguments.ArgumentType;
@@ -26,6 +30,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -133,10 +138,10 @@ public class MazesMod {
 
         @SubscribeEvent
         public static void onCmdReg(RegisterCommandsEvent event){
-            event.getDispatcher().register(Commands.literal("mz-reg").requires(con -> con.getPlayer() != null)
-                .then(Commands.argument("id", StringArgumentType.word())
-                    .then(Commands.argument("start", Vec3Argument.vec3())
-                        .then(Commands.argument("end", Vec3Argument.vec3())
+            event.getDispatcher().register(literal("mz-reg").requires(con -> con.getPlayer() != null)
+                .then(argument("id", StringArgumentType.word())
+                    .then(argument("start", Vec3Argument.vec3())
+                        .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
                         MazeManager.register(context, false);
@@ -148,10 +153,10 @@ public class MazesMod {
                     return 0;
                 }
             )))));
-            event.getDispatcher().register(Commands.literal("mz-upd").requires(con -> con.getPlayer() != null)
-                .then(Commands.argument("id", StringArgumentType.word())
-                    .then(Commands.argument("start", Vec3Argument.vec3())
-                        .then(Commands.argument("end", Vec3Argument.vec3())
+            event.getDispatcher().register(literal("mz-upd").requires(con -> con.getPlayer() != null)
+                .then(argument("id", StringArgumentType.word())
+                    .then(argument("start", Vec3Argument.vec3())
+                        .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
                         MazeManager.register(context, true);
@@ -163,14 +168,14 @@ public class MazesMod {
                     return 0;
                 }
             )))));
-            event.getDispatcher().register(Commands.literal("mz-del").requires(con -> con.getPlayer() != null)
-                .then(Commands.argument("id", StringArgumentType.word())
+            event.getDispatcher().register(literal("mz-del").requires(con -> con.getPlayer() != null)
+                .then(argument("id", StringArgumentType.word())
                 .executes(context ->{
 
                     return 0;
                 }
             )));
-            event.getDispatcher().register(Commands.literal("mz-tpdim").executes(context ->{
+            event.getDispatcher().register(literal("mz-tpdim").executes(context ->{
                 try{
                     context.getSource().getPlayer().changeDimension(context.getSource().getServer().getLevel(MAZES_LEVEL), new ITeleporter() {
                         @Override
@@ -188,6 +193,88 @@ public class MazesMod {
                 }
                 return 0;
             }));
+            event.getDispatcher().register(literal("mz-party").requires(con -> con.getPlayer() != null)
+                .then(literal("join").then(argument("code", StringArgumentType.word()).executes(context -> {
+                    try{
+                        Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
+                        if(in != null){
+                            Parties.leave(context.getSource().getPlayer());
+                        }
+                        var opart = Parties.PARTIES.get(context.getSource().getPlayer().getGameProfile().getId());
+                        if(opart != null && opart.size() > 0){
+                            context.getSource().sendSystemMessage(Component.literal("Please disband your own party first!"));
+                            return 0;
+                        }
+                        String code = context.getArgument("code", String.class);
+                        UUID party = Parties.get(code);
+                        if(party == null){
+                            context.getSource().sendSystemMessage(Component.literal("Party not found. Is the code correct?"));
+                        }
+                        else{
+                            Parties.join(context.getSource().getServer(), context.getSource().getPlayer(), party);
+                            context.getSource().sendSystemMessage(Component.literal("Ýou joined the party."));
+                        }
+                    }
+                    catch(Exception e){
+                        e.printStackTrace();
+                    }
+                    return 0;
+                })))
+                .then(literal("newcode").executes(context -> {
+                    Parties.putNewCode(context.getSource().getPlayer().getGameProfile().getId());
+                    String code = Parties.CODES.get(context.getSource().getPlayer().getGameProfile().getId());
+                    context.getSource().sendSystemMessage(Component.literal("Your New Invite Code: " + code));
+                    return 0;
+                }))
+                .then(literal("disband").executes(context -> {
+                    ArrayList<Player> party = Parties.PARTIES.get(context.getSource().getPlayer().getGameProfile().getId());
+                    if(party == null || party.size() == 0){
+                        context.getSource().sendSystemMessage(Component.literal("No party members to disband."));
+                    }
+                    else{
+                        Parties.disband(context.getSource().getPlayer(), context.getSource().getPlayer().getGameProfile().getId());
+                        context.getSource().sendSystemMessage(Component.literal("Party disbanded. Invite code removed."));
+                    }
+                    return 0;
+                }))
+                .then(literal("leave").executes(context -> {
+                    Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
+                    if(in == null){
+                        context.getSource().sendSystemMessage(Component.literal("You are not in a party!"));
+                    }
+                    else{
+                        Parties.leave(context.getSource().getPlayer());
+                    }
+                    return 0;
+                }))
+                .then(literal("status").executes(context -> {
+                    UUID uuid = context.getSource().getPlayer().getGameProfile().getId();
+                    ArrayList<Player> party = Parties.PARTIES.get(uuid);
+                    String code = Parties.CODES.get(uuid);
+                    if(code == null){
+                        context.getSource().sendSystemMessage(Component.literal("You do not have a party invite code."));
+                        context.getSource().sendSystemMessage(Component.literal("Use '/mz-party newcode' to generate a new code."));
+                        return 0;
+                    }
+                    context.getSource().sendSystemMessage(Component.literal("Your Invite Code: " + code));
+                    if(party == null){
+                        Player in = Parties.PARTYIN.get(uuid);
+                        if(in == null){
+                            context.getSource().sendSystemMessage(Component.literal("No Party Members."));
+                        }
+                        else{
+                            context.getSource().sendSystemMessage(Component.literal("Currently in " + in.getDisplayName() + "'s Party."));
+                        }
+                    }
+                    else{
+                        context.getSource().sendSystemMessage(Component.literal("Party Members: " + party.size()));
+                        context.getSource().sendSystemMessage(Component.literal("Use '/mz-party disband' to disband."));
+                        for(Player player : party){
+                            context.getSource().sendSystemMessage(Component.literal("- " + player.getDisplayName()));
+                        }
+                    }
+                    return 0;
+                })));
         }
 
     }

@@ -5,6 +5,7 @@ import static net.minecraft.commands.Commands.literal;
 import static net.minecraft.core.registries.Registries.DIMENSION;
 import static net.minecraft.core.registries.Registries.DIMENSION_TYPE;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -59,6 +60,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -73,6 +75,7 @@ public class MazesMod {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
+    public static File CFG_FOLDER;
     //
     public static final ResourceKey<Level> MAZES_LEVEL = ResourceKey.create(DIMENSION, new ResourceLocation(MODID, "mazes"));
 
@@ -98,7 +101,7 @@ public class MazesMod {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event){
-       //
+        //
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event){

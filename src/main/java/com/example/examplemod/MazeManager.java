@@ -3,30 +3,25 @@ package com.example.examplemod;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Objects;
 
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.datafixers.types.templates.CompoundList;
 import com.mojang.serialization.DataResult;
+import net.fexcraft.app.json.JsonHandler;
+import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
-import net.minecraft.core.RegistryCodecs;
 import net.minecraft.core.Vec3i;
-import net.minecraft.nbt.CollectionTag;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.LongTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 /**
@@ -35,7 +30,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 public class MazeManager {
 
 	public static HashMap<String, Maze> MAZES = new HashMap<>();
-	public static HashMap<Integer, MazeInst> INSTANCES = new HashMap<>();
+	public static ArrayList<MazeInst> INSTANCES = new ArrayList<>();
 	private static BlockPos CENTER = new BlockPos(0, 0 ,0);
 
 	public static void register(CommandContext<CommandSourceStack> context, boolean update) throws Exception{
@@ -45,7 +40,7 @@ public class MazeManager {
 		BlockPos st = new BlockPos(ae.getX() < as.getX() ? ae.getX() : as.getX(), ae.getY() < as.getY() ? ae.getY() : as.getY(), ae.getZ() < as.getZ() ? ae.getZ() : as.getZ());
 		BlockPos en = new BlockPos(ae.getX() > as.getX() ? ae.getX() : as.getX(), ae.getY() > as.getY() ? ae.getY() : as.getY(), ae.getZ() > as.getZ() ? ae.getZ() : as.getZ());
 		if(MAZES.containsKey(id) && !update){
-			context.getSource().sendFailure(Component.literal("A Maze with that ID exists already."));
+			context.getSource().sendFailure(Component.literal("A Maze template with that ID exists already."));
 			context.getSource().sendFailure(Component.literal("Use /mz-upd instead if you wish to update."));
 			context.getSource().sendFailure(Component.literal("Use /mz-del to delete it."));
 			return;
@@ -91,6 +86,9 @@ public class MazeManager {
 					tag.putLong("p", pos.set(px, py, pz).asLong());
 					tag.putInt("b", idx);
 					blks.add(tag);
+					if(state.getBlock() instanceof ChestBlock){
+						maze.chests.add(pos);
+					}
 				}
 			}
 		}
@@ -101,10 +99,51 @@ public class MazeManager {
 			sts.put(i + "", o.result().get());
 		}
 		com.put("states", sts);
-		File file = new File(FMLPaths.CONFIGDIR.get().toFile(), "/mazes/" + id + ".nbt");
+		File file = maze.getStatesFile();
 		if(!file.getParentFile().exists()) file.getParentFile().mkdirs();
 		NbtIo.write(com, file);
 		context.getSource().sendSystemMessage(Component.literal("File saved as: " + file.getPath()));
+		if(!MAZES.containsKey(id)) MAZES.put(maze.id, maze);
+	}
+
+	public static void load(){
+		MAZES.clear();
+		File folder = new File(FMLPaths.CONFIGDIR.get().toFile(), "/mazes");
+		if(!folder.exists()) folder.mkdirs();
+		for(File file : folder.listFiles()){
+			if(file.getName().endsWith(".json")){
+				try{
+					Maze maze = new Maze(JsonHandler.parse(file));
+					MAZES.put(maze.id, maze);
+				}
+				catch(Exception e){
+					e.printStackTrace();
+				}
+			}
+		}
+		folder = new File(FMLPaths.CONFIGDIR.get().toFile(), "/maze_instances");
+		if(!folder.exists()) folder.mkdirs();
+		for(File file : folder.listFiles()){
+			try{
+				INSTANCES.add(new MazeInst(JsonHandler.parse(file)));
+			}
+			catch(Exception e){
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public static void save(){
+		File folder = new File(FMLPaths.CONFIGDIR.get().toFile(), "/mazes");
+		if(!folder.exists()) folder.mkdirs();
+		for(Maze maze : MAZES.values()){
+			JsonHandler.print(maze.getTemplateFile(), maze.save(), PrintOption.DEFAULT);
+		}
+		folder = new File(FMLPaths.CONFIGDIR.get().toFile(), "/maze_instances");
+		if(!folder.exists()) folder.mkdirs();
+		for(int i = 0; i < INSTANCES.size(); i++){
+			JsonHandler.print(new File(folder, "inst_" + i + ".json"), INSTANCES.get(i).save(), PrintOption.DEFAULT);
+		}
 	}
 
 }

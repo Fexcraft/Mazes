@@ -4,6 +4,7 @@ import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 import static net.minecraft.core.registries.Registries.DIMENSION;
 import static net.minecraft.core.registries.Registries.DIMENSION_TYPE;
+import static net.minecraft.world.level.Level.OVERWORLD;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -15,6 +16,9 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.logging.LogUtils;
+import net.fexcraft.app.json.JsonHandler;
+import net.fexcraft.app.json.JsonHandler.PrintOption;
+import net.fexcraft.app.json.JsonMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
@@ -52,6 +56,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -76,6 +81,7 @@ public class MazesMod {
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MODID);
     public static File CFG_FOLDER;
+    public static int CFG_DISTANCE;
     //
     public static final ResourceKey<Level> MAZES_LEVEL = ResourceKey.create(DIMENSION, new ResourceLocation(MODID, "mazes"));
 
@@ -101,7 +107,14 @@ public class MazesMod {
     }
 
     private void commonSetup(final FMLCommonSetupEvent event){
-        //
+        File file = new File(FMLPaths.CONFIGDIR.get().toFile(), "/mazemod.json");
+        if(!file.exists()){
+            JsonMap map = new JsonMap();
+            map.add("instance_distance", 8);
+            JsonHandler.print(file, map, PrintOption.DEFAULT);
+        }
+        JsonMap config = JsonHandler.parse(file);
+        CFG_DISTANCE = config.getInteger("instance_distance", 8);
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event){
@@ -111,7 +124,12 @@ public class MazesMod {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event){
-        LOGGER.info("HELLO from server starting");
+        MazeManager.load();
+    }
+
+    @SubscribeEvent
+    public void onServerStopping(ServerStoppingEvent event){
+        MazeManager.save();
     }
 
     @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -183,14 +201,31 @@ public class MazesMod {
             )))));
             event.getDispatcher().register(literal("mz-del").requires(con -> con.getPlayer() != null)
                 .then(argument("id", StringArgumentType.word())
-                .executes(context ->{
-
+                .executes(context -> {
+                    String id = context.getArgument("id", String.class);
+                    Maze maze = MazeManager.MAZES.remove(id);
+                    if(maze == null){
+                        context.getSource().sendFailure(Component.literal("Maze template not found."));
+                    }
+                    else{
+                        context.getSource().sendSystemMessage(Component.literal("Maze template removed."));
+                        try{
+                            maze.getStatesFile().delete();
+                            maze.getTemplateFile().delete();
+                        }
+                        catch(Exception e){
+                            e.printStackTrace();
+                            context.getSource().sendFailure(Component.literal("Error during file deletion, check log for details."));
+                        }
+                    }
                     return 0;
                 }
             )));
             event.getDispatcher().register(literal("mz-tpdim").executes(context ->{
                 try{
-                    context.getSource().getPlayer().changeDimension(context.getSource().getServer().getLevel(MAZES_LEVEL), new ITeleporter() {
+                    Player player = context.getSource().getPlayer();
+                    ServerLevel lvl = context.getSource().getServer().getLevel(player.level().dimension().equals(MazesMod.MAZES_LEVEL) ? OVERWORLD : MAZES_LEVEL);
+                    context.getSource().getPlayer().changeDimension(lvl, new ITeleporter() {
                         @Override
                         public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
                             return ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
@@ -288,6 +323,51 @@ public class MazesMod {
                     }
                     return 0;
                 })));
+
+            event.getDispatcher().register(literal("mz-inst").requires(con -> con.getPlayer() != null)
+                .then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
+                    //
+                    return 0;
+                })))
+                .then(literal("list").executes(context -> {
+                    if(MazeManager.INSTANCES.isEmpty()){
+                        context.getSource().sendFailure(Component.literal("No maze instances on this server."));
+                        context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
+                        return 0;
+                    }
+                    context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
+                    int idx = 0;
+                    for(MazeInst inst : MazeManager.INSTANCES){
+                        context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "Root: " + inst.root.id));
+                        context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
+                        context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
+                        context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
+                    }
+                    return 0;
+                }))
+                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                    int idx = context.getArgument("idx", Integer.class);
+                    MazeInst inst = MazeManager.INSTANCES.get(idx);
+                    if(inst.players.size() > 0){
+                        context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
+                        context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
+                    }
+                    //
+                    return 0;
+                })))
+                .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                    int idx = context.getArgument("idx", Integer.class);
+                    MazeInst inst = MazeManager.INSTANCES.get(idx);
+                    //
+                    return 0;
+                })))
+                .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                    int idx = context.getArgument("idx", Integer.class);
+                    MazeInst inst = MazeManager.INSTANCES.get(idx);
+                    //
+                    return 0;
+                })))
+            );
         }
 
     }

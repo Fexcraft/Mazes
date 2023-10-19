@@ -147,6 +147,11 @@ public class MazesMod {
                         .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
+                        Player player = context.getSource().getPlayer();
+                        if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
+                            context.getSource().sendFailure(Component.literal("Please change dimension."));
+                            return 0;
+                        }
                         MazeManager.register(context, false);
                     }
                     catch(Exception e){
@@ -162,6 +167,11 @@ public class MazesMod {
                         .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
+                        Player player = context.getSource().getPlayer();
+                        if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
+                            context.getSource().sendFailure(Component.literal("Please change dimension."));
+                            return 0;
+                        }
                         MazeManager.register(context, true);
                     }
                     catch(Exception e){

@@ -1,17 +1,14 @@
-package com.example.examplemod;
-
-import java.io.File;
-import java.util.ArrayList;
-
-import javax.json.Json;
+package net.fexcraft.mod.mazemod;
 
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
 import net.fexcraft.lib.common.math.Time;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
-import net.minecraft.world.level.block.ChestBlock;
 import net.minecraftforge.fml.loading.FMLPaths;
+
+import java.io.File;
+import java.util.ArrayList;
 
 /**
  * @author Ferdinand Calo' (FEX___96)

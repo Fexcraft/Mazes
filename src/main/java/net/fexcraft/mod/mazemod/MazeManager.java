@@ -1,6 +1,7 @@
 package net.fexcraft.mod.mazemod;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -21,6 +22,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -95,10 +97,10 @@ public class MazeManager {
 			}
 		}
 		com.put("blocks", blks);
-		CompoundTag sts = new CompoundTag();
+		ListTag sts = new ListTag();
 		for(int i = 0; i < states.size(); i++){
 			DataResult<Tag> o = BlockState.CODEC.encodeStart(NbtOps.INSTANCE, states.get(i));
-			sts.put(i + "", o.result().get());
+			sts.add(o.result().get());
 		}
 		com.put("states", sts);
 		File file = maze.getStatesFile();
@@ -148,7 +150,7 @@ public class MazeManager {
 		}
 	}
 
-	public static void create(CommandContext<CommandSourceStack> context, String template){
+	public static void create(CommandContext<CommandSourceStack> context, String template) throws IOException {
 		Maze maze = MAZES.get(template);
 		if(maze == null){
 			context.getSource().sendFailure(Component.literal("Template not found."));
@@ -174,6 +176,45 @@ public class MazeManager {
 		int yo = maze.rawsize.getY() % 16 / 2;
 		int zo = maze.rawsize.getZ() % 16 / 2;
 		//
+		HashMap<BlockPos, Integer> blocks = new HashMap<>();
+		CompoundTag compound = NbtIo.read(maze.getStatesFile());
+		ListTag list = (ListTag)compound.get("blocks");
+		for(int t = 0; t < list.size(); t++){
+			CompoundTag tag = list.getCompound(t);
+			blocks.put(BlockPos.of(tag.getLong("p")), tag.getInt("b"));
+		}
+		ArrayList<BlockState> states = new ArrayList<>();
+		ListTag sts = (ListTag) compound.get("states");
+		for(int t = 0; t < sts.size(); t++){
+			states.add(BlockState.CODEC.parse(NbtOps.INSTANCE, sts.get(t)).result().get());
+		}
+		//
+		Level world = context.getSource().getServer().getLevel(MazesMod.MAZES_LEVEL);
+		MutableBlockPos pos = new MutableBlockPos();
+		MutableBlockPos blk = new MutableBlockPos();
+		int sx = vec.x * 16;
+		int sz = vec.z * 16;
+		int my = (-world.getMinBuildHeight() + world.getMaxBuildHeight()) / 2;
+		for(int x = -4; x < maze.rawsize.getX() + 4; x++){
+			for(int z = -4; z < maze.rawsize.getZ() + 4; z++){
+				for(int y = -4; y < maze.rawsize.getY() + 4; y++){
+					if(y < maze.rawsize.getY()){
+						world.setBlockAndUpdate(pos.set(sx + x, y + my, sz + z), Blocks.BEDROCK.defaultBlockState());
+					}
+					else{
+						world.setBlockAndUpdate(pos.set(sx + x, y + my, sz + z), Blocks.AIR.defaultBlockState());
+					}
+				}
+			}
+		}
+		for(int x = 0; x < maze.rawsize.getX(); x++){
+			for(int z = 0; z < maze.rawsize.getZ(); z++){
+				for(int y = 0; y < maze.rawsize.getY(); y++){
+					Integer i = blocks.get(blk.set(x, y, z));
+					if(i != null) world.setBlockAndUpdate(pos.set(sx + x, y + my, sz + z), states.get(i));
+				}
+			}
+		}
 	}
 
 	private static int getFurthestX(){

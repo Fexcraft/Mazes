@@ -6,6 +6,7 @@ import static net.minecraft.core.registries.Registries.DIMENSION;
 import static net.minecraft.world.level.Level.OVERWORLD;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
@@ -311,7 +312,16 @@ public class MazesMod {
 
             event.getDispatcher().register(literal("mz-inst").requires(con -> isOp(con))
                 .then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
-                    MazeManager.create(context, context.getArgument("template", String.class));
+                    try{
+                        MazeManager.create(context, context.getArgument("template", String.class));
+                    }
+                    catch(Throwable e){
+                        LOGGER.error(e.getMessage());
+                        for(StackTraceElement str : e.getStackTrace()){
+                            LOGGER.error(str.toString());
+                        }
+                        context.getSource().sendFailure(Component.literal("Errors occurred during command execution."));
+                    }
                     return 0;
                 })))
                 .then(literal("list").executes(context -> {
@@ -323,7 +333,8 @@ public class MazesMod {
                     context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
                     int idx = 0;
                     for(MazeInst inst : MazeManager.INSTANCES){
-                        context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "Root: " + inst.root.id));
+                        context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
+                        context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
                         context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
                         context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
                         context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
@@ -352,7 +363,8 @@ public class MazesMod {
                         context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
                         context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
                     }
-                    //
+                    MazeManager.INSTANCES.remove(inst);
+                    context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
                     return 0;
                 })))
                 .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {

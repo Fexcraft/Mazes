@@ -195,7 +195,7 @@ public class MazeManager {
 		MutableBlockPos blk = new MutableBlockPos();
 		int sx = vec.x * 16;
 		int sz = vec.z * 16;
-		int my = (-world.getMinBuildHeight() + world.getMaxBuildHeight()) / 2;
+		int my = maze.ory;
 		for(int x = -4; x < maze.rawsize.getX() + 4; x++){
 			for(int z = -4; z < maze.rawsize.getZ() + 4; z++){
 				for(int y = -4; y < maze.rawsize.getY() + 4; y++){

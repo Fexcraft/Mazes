@@ -20,6 +20,7 @@ public class Maze {
 	public BlockPos exit_min, exit_max;
 	public final String id;
 	public final ArrayList<BlockPos> chests = new ArrayList<>();
+	public int ory;
 
 	public Maze(String nid){
 		id = nid;
@@ -53,6 +54,7 @@ public class Maze {
 				chests.add(BlockPos.of(val.long_value()));
 			});
 		}
+		if(map.has("ylevel")) ory = map.getInteger("ylevel", 0);
 	}
 
 	public File getStatesFile(){
@@ -86,6 +88,7 @@ public class Maze {
 			for(BlockPos pos : chests) array.add(pos.asLong());
 			map.add("chests", array);
 		}
+		map.add("ylevel", ory);
 		return map;
 	}
 

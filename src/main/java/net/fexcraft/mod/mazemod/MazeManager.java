@@ -50,6 +50,7 @@ public class MazeManager {
 			return;
 		}
 		Maze maze = MAZES.containsKey(id) ? MAZES.get(id) : new Maze(id);
+		maze.ory = st.getY();
 		if(update) context.getSource().sendSystemMessage(Component.literal("Starting update of maze '" + id + "' ..."));
 		else context.getSource().sendSystemMessage(Component.literal("Starting registration of maze '" + id + "' ..."));
 		maze.rawsize = new Vec3i(en.getX() - st.getX(), en.getY() - st.getY(), en.getZ() - st.getZ());

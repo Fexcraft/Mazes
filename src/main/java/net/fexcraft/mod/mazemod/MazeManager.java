@@ -173,10 +173,6 @@ public class MazeManager {
 		context.getSource().sendSystemMessage(Component.literal("New Instance created, ID: " + INSTANCES.indexOf(inst)));
 		//
 		context.getSource().sendSystemMessage(Component.literal("Starting map generation..."));
-		int xo = maze.rawsize.getX() % 16 / 2;
-		int yo = maze.rawsize.getY() % 16 / 2;
-		int zo = maze.rawsize.getZ() % 16 / 2;
-		//
 		HashMap<BlockPos, Integer> blocks = new HashMap<>();
 		CompoundTag compound = NbtIo.read(maze.getStatesFile());
 		ListTag list = (ListTag)compound.get("blocks");
@@ -185,7 +181,7 @@ public class MazeManager {
 			blocks.put(BlockPos.of(tag.getLong("p")), tag.getInt("b"));
 		}
 		ArrayList<BlockState> states = new ArrayList<>();
-		ListTag sts = (ListTag) compound.get("states");
+		ListTag sts = (ListTag)compound.get("states");
 		for(int t = 0; t < sts.size(); t++){
 			states.add(BlockState.CODEC.parse(NbtOps.INSTANCE, sts.get(t)).result().get());
 		}
@@ -216,6 +212,7 @@ public class MazeManager {
 				}
 			}
 		}
+		context.getSource().sendSystemMessage(Component.literal("Map generated."));
 	}
 
 	private static int getFurthestX(){

@@ -356,12 +356,17 @@ public class MazesMod {
                     }
                     return 0;
                 }))
-                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, 1024)).executes(context -> {
                     int idx = context.getArgument("idx", Integer.class);
+                    if(idx >= MazeManager.INSTANCES.size()){
+                        context.getSource().sendFailure(Component.literal("Invalid Index specified."));
+                        return 0;
+                    }
                     MazeInst inst = MazeManager.INSTANCES.get(idx);
                     if(inst.players.size() > 0){
                         context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
                         context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
+                        return 0;
                     }
                     MazeManager.INSTANCES.remove(inst);
                     context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));

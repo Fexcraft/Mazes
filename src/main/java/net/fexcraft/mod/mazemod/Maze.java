@@ -16,8 +16,10 @@ import java.util.ArrayList;
 public class Maze {
 
 	public Vec3i rawsize, size;
-	public BlockPos entry_min, entry_max;
-	public BlockPos exit_min, exit_max;
+	public BlockPos entry_min;
+	public BlockPos entry_max;
+	public BlockPos exit_min;
+	public BlockPos exit_max;
 	public final String id;
 	public final ArrayList<BlockPos> chests = new ArrayList<>();
 	public int ory;
@@ -34,7 +36,7 @@ public class Maze {
 		size = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		if(map.has("entry_min")){
 			array = map.getArray("entry_min");
-			exit_min = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+			entry_min = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
 		if(map.has("entry_max")){
 			array = map.getArray("entry_max");
@@ -46,7 +48,7 @@ public class Maze {
 		}
 		if(map.has("entry_max")){
 			array = map.getArray("entry_max");
-			exit_min = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+			exit_max = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
 		if(map.has("chests")){
 			array = map.getArray("chests");
@@ -80,8 +82,8 @@ public class Maze {
 		if(exit_min != null){
 			map.add("exit_min", new JsonArray(exit_min.getX(), exit_min.getY(), exit_min.getZ()));
 		}
-		if(entry_max != null){
-			map.add("entry_max", new JsonArray(entry_max.getX(), entry_max.getY(), entry_max.getZ()));
+		if(exit_max != null){
+			map.add("exit_max", new JsonArray(exit_max.getX(), exit_max.getY(), exit_max.getZ()));
 		}
 		if(chests.size() > 0){
 			JsonArray array = new JsonArray();

@@ -38,9 +38,15 @@ public class MazeManager {
 	private static BlockPos CENTER = new BlockPos(0, 0 ,0);
 
 	public static void register(CommandContext<CommandSourceStack> context, boolean update) throws Exception{
+		context.getSource().sendSystemMessage(Component.literal("==================="));
 		String id = context.getArgument("id", String.class);
-		BlockPos as = Vec3Argument.getCoordinates(context, "start").getBlockPos(context.getSource());
-		BlockPos ae = Vec3Argument.getCoordinates(context, "end").getBlockPos(context.getSource());
+		SelectionUtil.SelectionCache sel = SelectionUtil.get(context.getSource().getPlayer());
+		if(sel.first == null || sel.second == null){
+			context.getSource().sendFailure(Component.literal("Your selection is incomplete."));
+			return;
+		}
+		BlockPos as = sel.first;
+		BlockPos ae = sel.second;
 		BlockPos st = new BlockPos(ae.getX() < as.getX() ? ae.getX() : as.getX(), ae.getY() < as.getY() ? ae.getY() : as.getY(), ae.getZ() < as.getZ() ? ae.getZ() : as.getZ());
 		BlockPos en = new BlockPos(ae.getX() > as.getX() ? ae.getX() : as.getX(), ae.getY() > as.getY() ? ae.getY() : as.getY(), ae.getZ() > as.getZ() ? ae.getZ() : as.getZ());
 		if(MAZES.containsKey(id) && !update){
@@ -50,7 +56,10 @@ public class MazeManager {
 			return;
 		}
 		Maze maze = MAZES.containsKey(id) ? MAZES.get(id) : new Maze(id);
-		maze.ory = st.getY();
+		maze.dimid = context.getSource().getPlayer().level().dimension().location();
+		maze.orgpos = st;
+		maze.tppos = context.getSource().getPlayer().getOnPos();
+		context.getSource().sendSystemMessage(Component.literal("Selection cache reset."));
 		if(update) context.getSource().sendSystemMessage(Component.literal("Starting update of maze '" + id + "' ..."));
 		else context.getSource().sendSystemMessage(Component.literal("Starting registration of maze '" + id + "' ..."));
 		maze.rawsize = new Vec3i(en.getX() - st.getX(), en.getY() - st.getY(), en.getZ() - st.getZ());
@@ -191,7 +200,7 @@ public class MazeManager {
 		MutableBlockPos blk = new MutableBlockPos();
 		int sx = vec.x * 16;
 		int sz = vec.z * 16;
-		int my = maze.ory;
+		int my = maze.orgpos.getY();
 		for(int x = -4; x < maze.rawsize.getX() + 4; x++){
 			for(int z = -4; z < maze.rawsize.getZ() + 4; z++){
 				for(int y = -4; y < maze.rawsize.getY() + 4; y++){

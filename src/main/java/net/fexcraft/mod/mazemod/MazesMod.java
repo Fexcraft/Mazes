@@ -20,18 +20,17 @@ import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.fexcraft.app.json.JsonMap;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -43,6 +42,7 @@ import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -55,6 +55,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -134,21 +135,47 @@ public class MazesMod {
         @SubscribeEvent
         public static void onPlayerJoin(PlayerLoggedInEvent event){
             if(event.getEntity().level().isClientSide) return;
-            //
+            SelectionUtil.add(event.getEntity());
         }
 
         @SubscribeEvent
         public static void onPlayerLeave(PlayerLoggedOutEvent event){
             if(event.getEntity().level().isClientSide) return;
-            //
+            SelectionUtil.rem(event.getEntity());
+        }
+
+        @SubscribeEvent
+        public static void onInteract(PlayerInteractEvent.RightClickBlock event){
+            if(event.getSide().isClient() || event.getHand() != InteractionHand.MAIN_HAND || event.getItemStack().getItem() != Items.STICK) return;
+            if(!isOp(event.getEntity())) return;
+            SelectionUtil.SelectionCache sel = SelectionUtil.get(event.getEntity());
+            if(sel.first == null){
+                sel.first = event.getPos();
+                event.getEntity().sendSystemMessage(Component.literal("First selection point set."));
+                event.getEntity().sendSystemMessage(Component.literal(sel.first.toShortString()));
+            }
+            else{
+                if(sel.second != null){
+                    event.getEntity().sendSystemMessage(Component.literal("(Use '/mz-desel' to reset selection.)"));
+                }
+                sel.second = event.getPos();
+                event.getEntity().sendSystemMessage(Component.literal("Second selection point set."));
+                event.getEntity().sendSystemMessage(Component.literal(sel.second.toShortString()));
+            }
         }
 
         @SubscribeEvent
         public static void onCmdReg(RegisterCommandsEvent event){
+            event.getDispatcher().register(literal("mz-desel").requires(con -> isOp(con))
+                .executes(context ->{
+                    SelectionUtil.SelectionCache cache = SelectionUtil.get(context.getSource().getPlayer());
+                    cache.first = cache.second = null;
+                        context.getSource().sendSystemMessage(Component.literal("Selection reset."));
+                    return 0;
+                }
+            ));
             event.getDispatcher().register(literal("mz-reg").requires(con -> isOp(con))
                 .then(argument("id", StringArgumentType.word())
-                    .then(argument("start", Vec3Argument.vec3())
-                        .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
                         Player player = context.getSource().getPlayer();
@@ -164,11 +191,9 @@ public class MazesMod {
                     }
                     return 0;
                 }
-            )))));
+            )));
             event.getDispatcher().register(literal("mz-upd").requires(con -> isOp(con))
                 .then(argument("id", StringArgumentType.word())
-                    .then(argument("start", Vec3Argument.vec3())
-                        .then(argument("end", Vec3Argument.vec3())
                 .executes(context ->{
                     try{
                         Player player = context.getSource().getPlayer();
@@ -184,7 +209,7 @@ public class MazesMod {
                     }
                     return 0;
                 }
-            )))));
+            )));
             event.getDispatcher().register(literal("mz-del").requires(con -> isOp(con))
                 .then(argument("id", StringArgumentType.word())
                 .executes(context -> {
@@ -356,7 +381,7 @@ public class MazesMod {
                     }
                     return 0;
                 }))
-                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, 1024)).executes(context -> {
+                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
                     int idx = context.getArgument("idx", Integer.class);
                     if(idx >= MazeManager.INSTANCES.size()){
                         context.getSource().sendFailure(Component.literal("Invalid Index specified."));
@@ -372,13 +397,13 @@ public class MazesMod {
                     context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
                     return 0;
                 })))
-                .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
                     int idx = context.getArgument("idx", Integer.class);
                     MazeInst inst = MazeManager.INSTANCES.get(idx);
                     //
                     return 0;
                 })))
-                .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, MazeManager.INSTANCES.size())).executes(context -> {
+                .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
                     int idx = context.getArgument("idx", Integer.class);
                     MazeInst inst = MazeManager.INSTANCES.get(idx);
                     //
@@ -391,6 +416,12 @@ public class MazesMod {
             if(con.getPlayer() == null) return false;
             if(con.getServer().isSingleplayer()) return true;
             return con.getServer().getPlayerList().isOp(con.getPlayer().getGameProfile());
+        }
+
+        private static boolean isOp(Player player){
+            if(player == null) return false;
+            if(ServerLifecycleHooks.getCurrentServer().isSingleplayer()) return true;
+            return ServerLifecycleHooks.getCurrentServer().getPlayerList().isOp(player.getGameProfile());
         }
 
     }

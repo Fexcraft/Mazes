@@ -5,6 +5,7 @@ import net.fexcraft.app.json.JsonMap;
 import net.fexcraft.lib.common.math.Time;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
 
 import java.io.File;
@@ -16,13 +17,16 @@ import java.util.ArrayList;
 public class Maze {
 
 	public Vec3i rawsize, size;
-	public BlockPos entry_min;
-	public BlockPos entry_max;
-	public BlockPos exit_min;
-	public BlockPos exit_max;
+	public BlockPos entry;
+	public BlockPos exit;
 	public final String id;
 	public final ArrayList<BlockPos> chests = new ArrayList<>();
-	public int ory;
+	public ResourceLocation dimid;
+	public BlockPos orgpos;
+	public BlockPos tppos;
+	//
+	public int instances;
+	public int cooldown;
 
 	public Maze(String nid){
 		id = nid;
@@ -34,29 +38,29 @@ public class Maze {
 		rawsize = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		array = map.getArray("size");
 		size = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		if(map.has("entry_min")){
-			array = map.getArray("entry_min");
-			entry_min = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		if(map.has("entry")){
+			array = map.getArray("entry");
+			entry = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
-		if(map.has("entry_max")){
-			array = map.getArray("entry_max");
-			entry_max = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		if(map.has("exit")){
+			array = map.getArray("exit");
+			exit = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
-		if(map.has("exit_min")){
-			array = map.getArray("exit_min");
-			exit_min = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		if(map.has("dim_pos")){
+			array = map.getArray("dim_pos");
+			orgpos = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
-		if(map.has("entry_max")){
-			array = map.getArray("entry_max");
-			exit_max = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		if(map.has("tp_pos")){
+			array = map.getArray("tp_pos");
+			orgpos = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
+		dimid = new ResourceLocation(map.getString("dim_id", null));
 		if(map.has("chests")){
 			array = map.getArray("chests");
 			array.value.forEach(val -> {
 				chests.add(BlockPos.of(val.long_value()));
 			});
 		}
-		if(map.has("ylevel")) ory = map.getInteger("ylevel", 0);
 	}
 
 	public File getStatesFile(){
@@ -73,24 +77,26 @@ public class Maze {
 		map.add("saved", Time.getAsString(Time.getDate()));
 		map.add("raw", new JsonArray(rawsize.getX(), rawsize.getY(), rawsize.getZ()));
 		map.add("size", new JsonArray(size.getX(), size.getY(), size.getZ()));
-		if(entry_min != null){
-			map.add("entry_min", new JsonArray(entry_min.getX(), entry_min.getY(), entry_min.getZ()));
+		if(entry != null){
+			map.add("entry", new JsonArray(entry.getX(), entry.getY(), entry.getZ()));
 		}
-		if(entry_max != null){
-			map.add("entry_max", new JsonArray(entry_max.getX(), entry_max.getY(), entry_max.getZ()));
+		if(exit != null){
+			map.add("exit", new JsonArray(exit.getX(), exit.getY(), exit.getZ()));
 		}
-		if(exit_min != null){
-			map.add("exit_min", new JsonArray(exit_min.getX(), exit_min.getY(), exit_min.getZ()));
+		if(orgpos != null){
+			map.add("dim_pos", new JsonArray(orgpos.getX(), orgpos.getY(), orgpos.getZ()));
 		}
-		if(exit_max != null){
-			map.add("exit_max", new JsonArray(exit_max.getX(), exit_max.getY(), exit_max.getZ()));
+		if(tppos != null){
+			map.add("tp_pos", new JsonArray(tppos.getX(), tppos.getY(), tppos.getZ()));
+		}
+		if(dimid != null){
+			map.add("dim_id", dimid.toString());
 		}
 		if(chests.size() > 0){
 			JsonArray array = new JsonArray();
 			for(BlockPos pos : chests) array.add(pos.asLong());
 			map.add("chests", array);
 		}
-		map.add("ylevel", ory);
 		return map;
 	}
 

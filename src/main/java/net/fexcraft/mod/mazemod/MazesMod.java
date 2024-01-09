@@ -166,93 +166,186 @@ public class MazesMod {
 
         @SubscribeEvent
         public static void onCmdReg(RegisterCommandsEvent event){
-            event.getDispatcher().register(literal("mz-desel").requires(con -> isOp(con))
-                .executes(context ->{
+            event.getDispatcher().register(literal("mz").requires(con -> isOp(con))
+                .then(literal("desel").executes(context -> {
                     SelectionUtil.SelectionCache cache = SelectionUtil.get(context.getSource().getPlayer());
                     cache.first = cache.second = null;
-                        context.getSource().sendSystemMessage(Component.literal("Selection reset."));
+                    context.getSource().sendSystemMessage(Component.literal("Selection reset."));
                     return 0;
-                }
-            ));
-            event.getDispatcher().register(literal("mz-reg").requires(con -> isOp(con))
-                .then(argument("id", StringArgumentType.word())
-                .executes(context ->{
-                    try{
-                        Player player = context.getSource().getPlayer();
-                        if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
-                            context.getSource().sendFailure(Component.literal("Please change dimension."));
-                            return 0;
-                        }
-                        MazeManager.register(context, false);
-                    }
-                    catch(Exception e){
-                        e.printStackTrace();
-                        context.getSource().sendFailure(Component.literal("Error during command execution. Check log for details."));
-                    }
-                    return 0;
-                }
-            )));
-            event.getDispatcher().register(literal("mz-upd").requires(con -> isOp(con))
-                .then(argument("id", StringArgumentType.word())
-                .executes(context ->{
-                    try{
-                        Player player = context.getSource().getPlayer();
-                        if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
-                            context.getSource().sendFailure(Component.literal("Please change dimension."));
-                            return 0;
-                        }
-                        MazeManager.register(context, true);
-                    }
-                    catch(Exception e){
-                        e.printStackTrace();
-                        context.getSource().sendFailure(Component.literal("Error during command execution. Check log for details."));
-                    }
-                    return 0;
-                }
-            )));
-            event.getDispatcher().register(literal("mz-del").requires(con -> isOp(con))
-                .then(argument("id", StringArgumentType.word())
-                .executes(context -> {
-                    String id = context.getArgument("id", String.class);
-                    Maze maze = MazeManager.MAZES.remove(id);
-                    if(maze == null){
-                        context.getSource().sendFailure(Component.literal("Maze template not found."));
-                    }
-                    else{
-                        context.getSource().sendSystemMessage(Component.literal("Maze template removed."));
+                }))
+                .then(literal("register")
+                    .then(argument("id", StringArgumentType.word())
+                    .executes(context -> {
                         try{
-                            maze.getStatesFile().delete();
-                            maze.getTemplateFile().delete();
+                            Player player = context.getSource().getPlayer();
+                            if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
+                                context.getSource().sendFailure(Component.literal("Please change dimension."));
+                                return 0;
+                            }
+                            MazeManager.register(context, false);
                         }
                         catch(Exception e){
                             e.printStackTrace();
-                            context.getSource().sendFailure(Component.literal("Error during file deletion, check log for details."));
+                            context.getSource().sendFailure(Component.literal("Error during command execution. Check log for details."));
                         }
+                        return 0;
+                    })
+                ))
+                .then(literal("update")
+                    .then(argument("id", StringArgumentType.word())
+                    .executes(context -> {
+                        try{
+                            Player player = context.getSource().getPlayer();
+                            if(player.level().dimension().equals(MazesMod.MAZES_LEVEL)){
+                                context.getSource().sendFailure(Component.literal("Please change dimension."));
+                                return 0;
+                            }
+                            MazeManager.register(context, true);
+                        }
+                        catch(Exception e){
+                            e.printStackTrace();
+                            context.getSource().sendFailure(Component.literal("Error during command execution. Check log for details."));
+                        }
+                        return 0;
+                    })
+                ))
+                .then(literal("delete")
+                    .then(argument("id", StringArgumentType.word())
+                    .executes(context -> {
+                        String id = context.getArgument("id", String.class);
+                        //TODO check if instances present and request their removal first
+                        Maze maze = MazeManager.MAZES.remove(id);
+                        if(maze == null){
+                            context.getSource().sendFailure(Component.literal("Maze template not found."));
+                        }
+                        else{
+                            context.getSource().sendSystemMessage(Component.literal("Maze template removed."));
+                            try{
+                                maze.getStatesFile().delete();
+                                maze.getTemplateFile().delete();
+                            }
+                            catch(Exception e){
+                                e.printStackTrace();
+                                context.getSource().sendFailure(Component.literal("Error during file deletion, check log for details."));
+                            }
+                        }
+                        return 0;
+                    })
+                ))
+                .then(literal("tp-dim").executes(context -> {
+                    try{
+                        Player player = context.getSource().getPlayer();
+                        ServerLevel lvl = context.getSource().getServer().getLevel(player.level().dimension().equals(MazesMod.MAZES_LEVEL) ? OVERWORLD : MAZES_LEVEL);
+                        context.getSource().getPlayer().changeDimension(lvl, new ITeleporter() {
+                            @Override
+                            public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
+                                return ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
+                            }
+                            @Override
+                            public boolean isVanilla(){
+                                return false;
+                            }
+                        });
+                    }
+                    catch(Throwable e){
+                        e.printStackTrace();
                     }
                     return 0;
-                }
-            )));
-            event.getDispatcher().register(literal("mz-tpdim").requires(con -> isOp(con)).executes(context ->{
-                try{
-                    Player player = context.getSource().getPlayer();
-                    ServerLevel lvl = context.getSource().getServer().getLevel(player.level().dimension().equals(MazesMod.MAZES_LEVEL) ? OVERWORLD : MAZES_LEVEL);
-                    context.getSource().getPlayer().changeDimension(lvl, new ITeleporter() {
-                        @Override
-                        public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                            return ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
+                }))
+                .then(literal("inst")
+                    .then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
+                        try{
+                            MazeManager.create(context, context.getArgument("template", String.class));
                         }
-                        @Override
-                        public boolean isVanilla(){
-                            return false;
+                        catch(Throwable e){
+                            LOGGER.error(e.getMessage());
+                            for(StackTraceElement str : e.getStackTrace()){
+                                LOGGER.error(str.toString());
+                            }
+                            context.getSource().sendFailure(Component.literal("Errors occurred during command execution."));
                         }
-                    });
-                }
-                catch(Throwable e){
-                    e.printStackTrace();
-                }
-                return 0;
-            }));
-            event.getDispatcher().register(literal("mz-party").requires(con -> con.getPlayer() != null)
+                        return 0;
+                    })))
+                    .then(literal("list").executes(context -> {
+                        if(MazeManager.INSTANCES.isEmpty()){
+                            context.getSource().sendFailure(Component.literal("No maze instances on this server."));
+                            context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
+                            return 0;
+                        }
+                        context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
+                        int idx = 0;
+                        for(MazeInst inst : MazeManager.INSTANCES){
+                            context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
+                            context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
+                            context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
+                            context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
+                            context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
+                        }
+                        return 0;
+                    }))
+                    .then(literal("list").executes(context -> {
+                        if(MazeManager.INSTANCES.isEmpty()){
+                            context.getSource().sendFailure(Component.literal("No maze instances on this server."));
+                            context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
+                            return 0;
+                        }
+                        context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
+                        int idx = 0;
+                        for(MazeInst inst : MazeManager.INSTANCES){
+                            context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
+                            context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
+                            context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
+                            context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
+                            context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
+                        }
+                        return 0;
+                    }))
+                    .then(literal("templates").executes(context -> {
+                        if(MazeManager.MAZES.isEmpty()){
+                            context.getSource().sendFailure(Component.literal("No maze templates on this server."));
+                            context.getSource().sendFailure(Component.literal("Use '/mz-reg' register one!'"));
+                            return 0;
+                        }
+                        context.getSource().sendSystemMessage(Component.literal("Maze Templates:"));
+                        for(Map.Entry<String, Maze> entry : MazeManager.MAZES.entrySet()){
+                            context.getSource().sendSystemMessage(Component.literal("ID: " + entry.getKey()));
+                            context.getSource().sendSystemMessage(Component.literal("R-Size: " + entry.getValue().rawsize.toShortString()));
+                            context.getSource().sendSystemMessage(Component.literal("C-Size: " + entry.getValue().size.toShortString()));
+                            context.getSource().sendSystemMessage(Component.literal("Chests: " + entry.getValue().chests.size()));
+                        }
+                        return 0;
+                    }))
+                    .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
+                        int idx = context.getArgument("idx", Integer.class);
+                        if(idx >= MazeManager.INSTANCES.size()){
+                            context.getSource().sendFailure(Component.literal("Invalid Index specified."));
+                            return 0;
+                        }
+                        MazeInst inst = MazeManager.INSTANCES.get(idx);
+                        if(inst.players.size() > 0){
+                            context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
+                            context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
+                            return 0;
+                        }
+                        MazeManager.INSTANCES.remove(inst);
+                        context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
+                        return 0;
+                    })))
+                    .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
+                        int idx = context.getArgument("idx", Integer.class);
+                        MazeInst inst = MazeManager.INSTANCES.get(idx);
+                        //
+                        return 0;
+                    })))
+                    .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
+                        int idx = context.getArgument("idx", Integer.class);
+                        MazeInst inst = MazeManager.INSTANCES.get(idx);
+                        //
+                        return 0;
+                    })))
+                )
+            );
+            event.getDispatcher().register(literal("party").requires(con -> con.getPlayer() != null)
                 .then(literal("join").then(argument("code", StringArgumentType.word()).executes(context -> {
                     try{
                         Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
@@ -334,82 +427,6 @@ public class MazesMod {
                     }
                     return 0;
                 })));
-
-            event.getDispatcher().register(literal("mz-inst").requires(con -> isOp(con))
-                .then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
-                    try{
-                        MazeManager.create(context, context.getArgument("template", String.class));
-                    }
-                    catch(Throwable e){
-                        LOGGER.error(e.getMessage());
-                        for(StackTraceElement str : e.getStackTrace()){
-                            LOGGER.error(str.toString());
-                        }
-                        context.getSource().sendFailure(Component.literal("Errors occurred during command execution."));
-                    }
-                    return 0;
-                })))
-                .then(literal("list").executes(context -> {
-                    if(MazeManager.INSTANCES.isEmpty()){
-                        context.getSource().sendFailure(Component.literal("No maze instances on this server."));
-                        context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
-                        return 0;
-                    }
-                    context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
-                    int idx = 0;
-                    for(MazeInst inst : MazeManager.INSTANCES){
-                        context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
-                        context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
-                        context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
-                        context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
-                        context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
-                    }
-                    return 0;
-                }))
-                .then(literal("templates").executes(context -> {
-                    if(MazeManager.MAZES.isEmpty()){
-                        context.getSource().sendFailure(Component.literal("No maze templates on this server."));
-                        context.getSource().sendFailure(Component.literal("Use '/mz-reg' register one!'"));
-                        return 0;
-                    }
-                    context.getSource().sendSystemMessage(Component.literal("Maze Templates:"));
-                    for(Map.Entry<String, Maze> entry : MazeManager.MAZES.entrySet()){
-                        context.getSource().sendSystemMessage(Component.literal("ID: " + entry.getKey()));
-                        context.getSource().sendSystemMessage(Component.literal("R-Size: " + entry.getValue().rawsize.toShortString()));
-                        context.getSource().sendSystemMessage(Component.literal("C-Size: " + entry.getValue().size.toShortString()));
-                        context.getSource().sendSystemMessage(Component.literal("Chests: " + entry.getValue().chests.size()));
-                    }
-                    return 0;
-                }))
-                .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                    int idx = context.getArgument("idx", Integer.class);
-                    if(idx >= MazeManager.INSTANCES.size()){
-                        context.getSource().sendFailure(Component.literal("Invalid Index specified."));
-                        return 0;
-                    }
-                    MazeInst inst = MazeManager.INSTANCES.get(idx);
-                    if(inst.players.size() > 0){
-                        context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
-                        context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
-                        return 0;
-                    }
-                    MazeManager.INSTANCES.remove(inst);
-                    context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
-                    return 0;
-                })))
-                .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                    int idx = context.getArgument("idx", Integer.class);
-                    MazeInst inst = MazeManager.INSTANCES.get(idx);
-                    //
-                    return 0;
-                })))
-                .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                    int idx = context.getArgument("idx", Integer.class);
-                    MazeInst inst = MazeManager.INSTANCES.get(idx);
-                    //
-                    return 0;
-                })))
-            );
         }
 
         private static boolean isOp(CommandSourceStack con){

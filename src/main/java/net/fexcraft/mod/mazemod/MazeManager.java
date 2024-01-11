@@ -51,13 +51,13 @@ public class MazeManager {
 		BlockPos en = new BlockPos(ae.getX() > as.getX() ? ae.getX() : as.getX(), ae.getY() > as.getY() ? ae.getY() : as.getY(), ae.getZ() > as.getZ() ? ae.getZ() : as.getZ());
 		if(MAZES.containsKey(id) && !update){
 			context.getSource().sendFailure(Component.literal("A Maze template with that ID exists already."));
-			context.getSource().sendFailure(Component.literal("Use /mz-upd instead if you wish to update."));
-			context.getSource().sendFailure(Component.literal("Use /mz-del to delete it."));
+			context.getSource().sendFailure(Component.literal("Use '/mz update <id>' instead if you wish to update."));
+			context.getSource().sendFailure(Component.literal("Use '/mz delete <id>' to delete it."));
 			return;
 		}
 		Maze maze = MAZES.containsKey(id) ? MAZES.get(id) : new Maze(id);
-		maze.dimid = context.getSource().getPlayer().level().dimension().location();
-		maze.orgpos = st;
+		maze.dimid = context.getSource().getPlayer().level().dimension();
+		maze.orgpos = new BlockPos(st.getX(), en.getY(), st.getZ());
 		maze.tppos = context.getSource().getPlayer().getOnPos();
 		context.getSource().sendSystemMessage(Component.literal("Selection cache reset."));
 		if(update) context.getSource().sendSystemMessage(Component.literal("Starting update of maze '" + id + "' ..."));

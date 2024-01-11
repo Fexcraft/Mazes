@@ -209,16 +209,45 @@ public class MazesMod {
                         return 0;
                     })
                 ))
+                .then(literal("config")
+                    .then(argument("id", StringArgumentType.word())
+                        .then(literal("instances")
+                        .then(argument("value", IntegerArgumentType.integer(1, 64))
+                        .executes(context -> {
+                            Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
+                            if(maze != null){
+                                maze.instances = context.getArgument("value", Integer.class);
+                                context.getSource().sendSystemMessage(Component.literal("Maze max instances updated to " + maze.instances));
+                            }
+                            else{
+                                context.getSource().sendFailure(Component.literal("Maze template not found."));
+                            }
+                            return 0;
+                        })))
+                        .then(literal("cooldown")
+                        .then(argument("value", IntegerArgumentType.integer(1, 86400))
+                        .executes(context -> {
+                            Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
+                            if(maze != null){
+                                maze.instances = context.getArgument("value", Integer.class);
+                                context.getSource().sendSystemMessage(Component.literal("Maze cooldown (seconds) updated to " + maze.instances));
+                            }
+                            else{
+                                context.getSource().sendFailure(Component.literal("Maze template not found."));
+                            }
+                            return 0;
+                        })))
+                ))
                 .then(literal("delete")
                     .then(argument("id", StringArgumentType.word())
                     .executes(context -> {
                         String id = context.getArgument("id", String.class);
-                        //TODO check if instances present and request their removal first
                         Maze maze = MazeManager.MAZES.remove(id);
                         if(maze == null){
                             context.getSource().sendFailure(Component.literal("Maze template not found."));
                         }
                         else{
+                            //TODO remove instances
                             context.getSource().sendSystemMessage(Component.literal("Maze template removed."));
                             try{
                                 maze.getStatesFile().delete();
@@ -252,8 +281,53 @@ public class MazesMod {
                     }
                     return 0;
                 }))
+                .then(literal("tp-to").then(argument("id", StringArgumentType.word()).executes(context -> {
+                    String id = context.getArgument("id", String.class);
+                    Maze maze = MazeManager.MAZES.get(id);
+                    if(maze == null){
+                        context.getSource().sendFailure(Component.literal("Maze template not found."));
+                    }
+                    else{
+                        try{
+                            ServerLevel lvl = context.getSource().getServer().getLevel(maze.dimid);
+                            context.getSource().getPlayer().changeDimension(lvl, new ITeleporter(){
+                                @Override
+                                public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
+                                    entity = ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
+                                    entity.setPos(maze.orgpos.getCenter());
+                                    return entity;
+                                }
+                                @Override
+                                public boolean isVanilla(){
+                                    return false;
+                                }
+                            });
+                        }
+                        catch(Throwable e){
+                            e.printStackTrace();
+                        }
+                    }
+                    return 0;
+                })))
+                .then(literal("templates").executes(context -> {
+                    if(MazeManager.MAZES.isEmpty()){
+                        context.getSource().sendFailure(Component.literal("No maze templates on this server."));
+                        context.getSource().sendFailure(Component.literal("Use '/mz register <id>' register one!'"));
+                        return 0;
+                    }
+                    context.getSource().sendSystemMessage(Component.literal("Maze Templates:"));
+                    for(Map.Entry<String, Maze> entry : MazeManager.MAZES.entrySet()){
+                        context.getSource().sendSystemMessage(Component.literal("ID: " + entry.getKey()));
+                        context.getSource().sendSystemMessage(Component.literal("R-Size: " + entry.getValue().rawsize.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("C-Size: " + entry.getValue().size.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("Chests: " + entry.getValue().chests.size()));
+                        context.getSource().sendSystemMessage(Component.literal("Max-Inst: " + entry.getValue().instances));
+                        context.getSource().sendSystemMessage(Component.literal("Cooldown: " + entry.getValue().cooldown + "s"));
+                    }
+                    return 0;
+                }))
                 .then(literal("inst")
-                    .then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
+                    /*.then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
                         try{
                             MazeManager.create(context, context.getArgument("template", String.class));
                         }
@@ -265,11 +339,11 @@ public class MazesMod {
                             context.getSource().sendFailure(Component.literal("Errors occurred during command execution."));
                         }
                         return 0;
-                    })))
+                    })))*///instances will be created automatically
                     .then(literal("list").executes(context -> {
                         if(MazeManager.INSTANCES.isEmpty()){
                             context.getSource().sendFailure(Component.literal("No maze instances on this server."));
-                            context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
+                            //context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
                             return 0;
                         }
                         context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
@@ -280,38 +354,6 @@ public class MazesMod {
                             context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
                             context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
                             context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
-                        }
-                        return 0;
-                    }))
-                    .then(literal("list").executes(context -> {
-                        if(MazeManager.INSTANCES.isEmpty()){
-                            context.getSource().sendFailure(Component.literal("No maze instances on this server."));
-                            context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
-                            return 0;
-                        }
-                        context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
-                        int idx = 0;
-                        for(MazeInst inst : MazeManager.INSTANCES){
-                            context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
-                            context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
-                            context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
-                            context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
-                            context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
-                        }
-                        return 0;
-                    }))
-                    .then(literal("templates").executes(context -> {
-                        if(MazeManager.MAZES.isEmpty()){
-                            context.getSource().sendFailure(Component.literal("No maze templates on this server."));
-                            context.getSource().sendFailure(Component.literal("Use '/mz-reg' register one!'"));
-                            return 0;
-                        }
-                        context.getSource().sendSystemMessage(Component.literal("Maze Templates:"));
-                        for(Map.Entry<String, Maze> entry : MazeManager.MAZES.entrySet()){
-                            context.getSource().sendSystemMessage(Component.literal("ID: " + entry.getKey()));
-                            context.getSource().sendSystemMessage(Component.literal("R-Size: " + entry.getValue().rawsize.toShortString()));
-                            context.getSource().sendSystemMessage(Component.literal("C-Size: " + entry.getValue().size.toShortString()));
-                            context.getSource().sendSystemMessage(Component.literal("Chests: " + entry.getValue().chests.size()));
                         }
                         return 0;
                     }))
@@ -324,14 +366,20 @@ public class MazesMod {
                         MazeInst inst = MazeManager.INSTANCES.get(idx);
                         if(inst.players.size() > 0){
                             context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
-                            context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz-inst pause " + idx + "'"));
+                            context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst stop " + idx + "'"));
                             return 0;
                         }
                         MazeManager.INSTANCES.remove(inst);
                         context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
                         return 0;
                     })))
-                    .then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
+                    .then(literal("stop").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
+                        int idx = context.getArgument("idx", Integer.class);
+                        MazeInst inst = MazeManager.INSTANCES.get(idx);
+                        //
+                        return 0;
+                    })))
+                    /*.then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
                         int idx = context.getArgument("idx", Integer.class);
                         MazeInst inst = MazeManager.INSTANCES.get(idx);
                         //
@@ -342,7 +390,7 @@ public class MazesMod {
                         MazeInst inst = MazeManager.INSTANCES.get(idx);
                         //
                         return 0;
-                    })))
+                    })))*/
                 )
             );
             event.getDispatcher().register(literal("party").requires(con -> con.getPlayer() != null)

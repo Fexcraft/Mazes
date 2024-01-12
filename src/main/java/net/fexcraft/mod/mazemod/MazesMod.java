@@ -281,34 +281,6 @@ public class MazesMod {
                     }
                     return 0;
                 }))
-                .then(literal("tp-to").then(argument("id", StringArgumentType.word()).executes(context -> {
-                    String id = context.getArgument("id", String.class);
-                    Maze maze = MazeManager.MAZES.get(id);
-                    if(maze == null){
-                        context.getSource().sendFailure(Component.literal("Maze template not found."));
-                    }
-                    else{
-                        try{
-                            ServerLevel lvl = context.getSource().getServer().getLevel(maze.dimid);
-                            context.getSource().getPlayer().changeDimension(lvl, new ITeleporter(){
-                                @Override
-                                public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                                    entity = ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
-                                    entity.setPos(maze.orgpos.getCenter());
-                                    return entity;
-                                }
-                                @Override
-                                public boolean isVanilla(){
-                                    return false;
-                                }
-                            });
-                        }
-                        catch(Throwable e){
-                            e.printStackTrace();
-                        }
-                    }
-                    return 0;
-                })))
                 .then(literal("templates").executes(context -> {
                     if(MazeManager.MAZES.isEmpty()){
                         context.getSource().sendFailure(Component.literal("No maze templates on this server."));

@@ -365,7 +365,7 @@ public class MazesMod {
                     })))*/
                 )
             );
-            event.getDispatcher().register(literal("party").requires(con -> con.getPlayer() != null)
+            event.getDispatcher().register(literal("mz-party").requires(con -> con.getPlayer() != null)
                 .then(literal("join").then(argument("code", StringArgumentType.word()).executes(context -> {
                     try{
                         Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());

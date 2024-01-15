@@ -6,7 +6,6 @@ import static net.minecraft.core.registries.Registries.DIMENSION;
 import static net.minecraft.world.level.Level.OVERWORLD;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
@@ -19,7 +18,6 @@ import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.fexcraft.app.json.JsonMap;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -29,12 +27,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.ITeleporter;
@@ -132,20 +127,20 @@ public class MazesMod {
         @SubscribeEvent
         public static void onPlayerJoin(PlayerLoggedInEvent event){
             if(event.getEntity().level().isClientSide) return;
-            SelectionUtil.add(event.getEntity());
+            MazeManager.PLAYERS.put(event.getEntity().getGameProfile().getId(), new PlayerData());
         }
 
         @SubscribeEvent
         public static void onPlayerLeave(PlayerLoggedOutEvent event){
             if(event.getEntity().level().isClientSide) return;
-            SelectionUtil.rem(event.getEntity());
+            MazeManager.PLAYERS.remove(event.getEntity().getGameProfile().getId());
         }
 
         @SubscribeEvent
         public static void onInteract(PlayerInteractEvent.RightClickBlock event){
             if(event.getSide().isClient() || event.getHand() != InteractionHand.MAIN_HAND || event.getItemStack().getItem() != Items.STICK) return;
             if(!isOp(event.getEntity())) return;
-            SelectionUtil.SelectionCache sel = SelectionUtil.get(event.getEntity());
+            SelectionCache sel = MazeManager.getPlayerData(event.getEntity()).selcache;
             if(sel.first == null){
                 sel.first = event.getPos();
                 event.getEntity().sendSystemMessage(Component.literal("First selection point set."));
@@ -165,7 +160,7 @@ public class MazesMod {
         public static void onCmdReg(RegisterCommandsEvent event){
             event.getDispatcher().register(literal("mz").requires(con -> isOp(con))
                 .then(literal("desel").executes(context -> {
-                    SelectionUtil.SelectionCache cache = SelectionUtil.get(context.getSource().getPlayer());
+                    SelectionCache cache = MazeManager.getPlayerData(context.getSource().getPlayer()).selcache;
                     cache.first = cache.second = null;
                     context.getSource().sendSystemMessage(Component.literal("Selection reset."));
                     return 0;
@@ -203,6 +198,25 @@ public class MazesMod {
                             e.printStackTrace();
                             context.getSource().sendFailure(Component.literal("Error during command execution. Check log for details."));
                         }
+                        return 0;
+                    })
+                ))
+                .then(literal("link")
+                    .then(argument("id", StringArgumentType.word())
+                    .executes(context -> {
+                        Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
+                        PlayerData data = MazeManager.getPlayerData(context.getSource().getPlayer());
+                        if(data.lexit){
+                            maze.gate_out = data.last;
+                            context.getSource().sendSystemMessage(Component.literal("Maze exit Gate set."));
+                            context.getSource().sendSystemMessage(Component.literal(maze.gate_out.toShortString()));
+                        }
+                        else{
+                            maze.gate_in = data.last;
+                            context.getSource().sendSystemMessage(Component.literal("Maze entry Gate set."));
+                            context.getSource().sendSystemMessage(Component.literal(maze.gate_in.toShortString()));
+                        }
+                        data.last = null;
                         return 0;
                     })
                 ))
@@ -262,22 +276,37 @@ public class MazesMod {
                     try{
                         Player player = context.getSource().getPlayer();
                         ServerLevel lvl = context.getSource().getServer().getLevel(player.level().dimension().equals(MazesMod.MAZES_LEVEL) ? OVERWORLD : MAZES_LEVEL);
-                        context.getSource().getPlayer().changeDimension(lvl, new ITeleporter() {
-                            @Override
-                            public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity) {
-                                return ITeleporter.super.placeEntity(entity, currentWorld, destWorld, yaw, repositionEntity);
-                            }
-                            @Override
-                            public boolean isVanilla(){
-                                return false;
-                            }
-                        });
+                        context.getSource().getPlayer().changeDimension(lvl, new ITeleporter(){});
                     }
                     catch(Throwable e){
                         e.printStackTrace();
                     }
                     return 0;
                 }))
+                .then(literal("tp")
+                    .then(argument("id", StringArgumentType.word())
+                    .executes(context -> {
+                        String id = context.getArgument("id", String.class);
+                        Maze maze = MazeManager.MAZES.get(id);
+                        if(maze == null){
+                            context.getSource().sendFailure(Component.literal("Maze template not found."));
+                        }
+                        else{
+                            try{
+                                Player player = context.getSource().getPlayer();
+                                player.moveTo(maze.orgpos.getCenter());
+                                if(!player.level().dimension().equals(OVERWORLD)){
+                                    ServerLevel lvl = context.getSource().getServer().getLevel(OVERWORLD);
+                                    context.getSource().getPlayer().changeDimension(lvl, new ITeleporter(){});
+                                }
+                            }
+                            catch(Throwable e){
+                                e.printStackTrace();
+                            }
+                        }
+                        return 0;
+                    })
+                ))
                 .then(literal("templates").executes(context -> {
                     if(MazeManager.MAZES.isEmpty()){
                         context.getSource().sendFailure(Component.literal("No maze templates on this server."));
@@ -291,8 +320,8 @@ public class MazesMod {
                         context.getSource().sendSystemMessage(Component.literal("R-Size: " + temp.rawsize.toShortString()));
                         context.getSource().sendSystemMessage(Component.literal("C-Size: " + temp.size.toShortString()));
                         context.getSource().sendSystemMessage(Component.literal("Chests: " + temp.chests.size()));
-                        if(temp.entry != null) context.getSource().sendSystemMessage(Component.literal("Entry: " + temp.entry.toShortString()));
-                        if(temp.exit != null) context.getSource().sendSystemMessage(Component.literal("Exit: " + temp.exit.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("Entry: " + (temp.gate_in == null ? "not set" : temp.gate_in.toShortString())));
+                        context.getSource().sendSystemMessage(Component.literal("Exit: " + (temp.gate_out == null ? "not set" : temp.gate_out.toShortString())));
                         context.getSource().sendSystemMessage(Component.literal("Max-Inst: " + temp.instances));
                         context.getSource().sendSystemMessage(Component.literal("Cooldown: " + temp.cooldown + "s"));
                     }
@@ -422,13 +451,14 @@ public class MazesMod {
                 .then(literal("status").executes(context -> {
                     UUID uuid = context.getSource().getPlayer().getGameProfile().getId();
                     ArrayList<Player> party = Parties.PARTIES.get(uuid);
+                    PlayerData data = MazeManager.getPlayerData(context.getSource().getPlayer());
                     String code = Parties.CODES.get(uuid);
-                    if(code == null){
+                    if(code == null && !data.informed){
                         context.getSource().sendSystemMessage(Component.literal("You do not have a party invite code."));
                         context.getSource().sendSystemMessage(Component.literal("Use '/mz-party newcode' to generate a new code."));
-                        return 0;
+                        data.informed = true;
                     }
-                    context.getSource().sendSystemMessage(Component.literal("Your Invite Code: " + code));
+                    if(code != null) context.getSource().sendSystemMessage(Component.literal("Your Invite Code: " + code));
                     if(party == null){
                         Player in = Parties.PARTYIN.get(uuid);
                         if(in == null){

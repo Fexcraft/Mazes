@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
 import net.fexcraft.lib.common.math.Time;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 
@@ -14,6 +15,7 @@ public class MazeInst {
 	public ChunkPos start;
 	public ChunkPos end;
 	public ArrayList<Player> players = new ArrayList<>();
+	public BlockPos startpos;
 
 	public MazeInst(Maze maze, ChunkPos s, ChunkPos e){
 		root = maze;
@@ -27,6 +29,8 @@ public class MazeInst {
 		start = new ChunkPos(arr.get(0).integer_value(), arr.get(1).integer_value());
 		arr = map.getArray("end");
 		end = new ChunkPos(arr.get(0).integer_value(), arr.get(1).integer_value());
+		arr = map.getArray("end");
+		startpos = new BlockPos(arr.get(0).integer_value(), arr.get(1).integer_value(), arr.get(2).integer_value());
 	}
 
 	public JsonMap save(){
@@ -35,6 +39,7 @@ public class MazeInst {
 		map.add("root", root.id);
 		map.add("start", new JsonArray(start.x, start.z));
 		map.add("end", new JsonArray(end.x, end.z));
+		map.add("startpos", new JsonArray(startpos.getX(), startpos.getY(), startpos.getZ()));
 		return map;
 	}
 

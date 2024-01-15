@@ -72,16 +72,12 @@ public class MazesMod {
     //
     public static final ResourceKey<Level> MAZES_LEVEL = ResourceKey.create(DIMENSION, new ResourceLocation(MODID, "mazes"));
 
-    public static final RegistryObject<Block> EXAMPLE_BLOCK = BLOCKS.register("example_block", () -> new Block(BlockBehaviour.Properties.of().mapColor(MapColor.STONE)));
-    public static final RegistryObject<Item> EXAMPLE_BLOCK_ITEM = ITEMS.register("example_block", () -> new BlockItem(EXAMPLE_BLOCK.get(), new Item.Properties()));
-    public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item", () -> new Item(new Item.Properties().food(new FoodProperties.Builder()
-            .alwaysEat().nutrition(1).saturationMod(2f).build())));
-    public static final RegistryObject<CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
-            .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
-            .displayItems((parameters, output) -> {
-                output.accept(EXAMPLE_ITEM.get()); // Add the example item to the tab. For your own tabs, this method is preferred over the event
-            }).build());
+    public static final RegistryObject<Block> ENTRY_BLOCK = BLOCKS.register("entry", () -> new EnrxitBlock(false));
+    public static final RegistryObject<Item> ENTRY_ITEM = ITEMS.register("entry", () -> new BlockItem(ENTRY_BLOCK.get(), new Item.Properties()));
+    public static final RegistryObject<Block> EXIT_BLOCK = BLOCKS.register("exit", () -> new EnrxitBlock(true));
+    public static final RegistryObject<Item> EXIT_ITEM = ITEMS.register("exit", () -> new BlockItem(EXIT_BLOCK.get(), new Item.Properties()));
+    //public static final RegistryObject<Item> EXAMPLE_ITEM = ITEMS.register("example_item", () -> new Item(new Item.Properties().food(new FoodProperties.Builder()
+    //        .alwaysEat().nutrition(1).saturationMod(2f).build())));
 
     public MazesMod(){
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -105,8 +101,9 @@ public class MazesMod {
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event){
-        if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS)
-            event.accept(EXAMPLE_BLOCK_ITEM);
+        if(event.getTabKey() != CreativeModeTabs.TOOLS_AND_UTILITIES) return;
+        event.accept(ENTRY_ITEM);
+        event.accept(EXIT_ITEM);
     }
 
     @SubscribeEvent
@@ -289,12 +286,15 @@ public class MazesMod {
                     }
                     context.getSource().sendSystemMessage(Component.literal("Maze Templates:"));
                     for(Map.Entry<String, Maze> entry : MazeManager.MAZES.entrySet()){
+                        Maze temp = entry.getValue();
                         context.getSource().sendSystemMessage(Component.literal("ID: " + entry.getKey()));
-                        context.getSource().sendSystemMessage(Component.literal("R-Size: " + entry.getValue().rawsize.toShortString()));
-                        context.getSource().sendSystemMessage(Component.literal("C-Size: " + entry.getValue().size.toShortString()));
-                        context.getSource().sendSystemMessage(Component.literal("Chests: " + entry.getValue().chests.size()));
-                        context.getSource().sendSystemMessage(Component.literal("Max-Inst: " + entry.getValue().instances));
-                        context.getSource().sendSystemMessage(Component.literal("Cooldown: " + entry.getValue().cooldown + "s"));
+                        context.getSource().sendSystemMessage(Component.literal("R-Size: " + temp.rawsize.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("C-Size: " + temp.size.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("Chests: " + temp.chests.size()));
+                        if(temp.entry != null) context.getSource().sendSystemMessage(Component.literal("Entry: " + temp.entry.toShortString()));
+                        if(temp.exit != null) context.getSource().sendSystemMessage(Component.literal("Exit: " + temp.exit.toShortString()));
+                        context.getSource().sendSystemMessage(Component.literal("Max-Inst: " + temp.instances));
+                        context.getSource().sendSystemMessage(Component.literal("Cooldown: " + temp.cooldown + "s"));
                     }
                     return 0;
                 }))

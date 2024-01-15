@@ -103,6 +103,12 @@ public class MazeManager {
 					if(state.getBlock() instanceof ChestBlock){
 						maze.chests.add(pos);
 					}
+					else if(state.getBlock() == MazesMod.ENTRY_BLOCK.get()){
+						maze.entry = pos;
+					}
+					else if(state.getBlock() == MazesMod.EXIT_BLOCK.get()){
+						maze.exit = pos;
+					}
 				}
 			}
 		}

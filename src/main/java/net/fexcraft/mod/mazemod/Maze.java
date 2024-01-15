@@ -21,8 +21,10 @@ import static net.minecraft.core.registries.Registries.DIMENSION;
 public class Maze {
 
 	public Vec3i rawsize, size;
-	public BlockPos entry;
-	public BlockPos exit;
+	public ArrayList<BlockPos> entry = new ArrayList<>();
+	public ArrayList<BlockPos> exit = new ArrayList<>();
+	public BlockPos gate_in;
+	public BlockPos gate_out;
 	public final String id;
 	public final ArrayList<BlockPos> chests = new ArrayList<>();
 	public ResourceKey<Level> dimid;
@@ -43,12 +45,20 @@ public class Maze {
 		array = map.getArray("size");
 		size = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		if(map.has("entry")){
-			array = map.getArray("entry");
-			entry = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+			entry.clear();
+			map.getArray("entry").value.forEach(val -> entry.add(BlockPos.of(val.long_value())));
 		}
 		if(map.has("exit")){
-			array = map.getArray("exit");
-			exit = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+			exit.clear();
+			map.getArray("exit").value.forEach(val -> exit.add(BlockPos.of(val.long_value())));
+		}
+		if(map.has("gate_in")){
+			array = map.getArray("gate_in");
+			gate_in = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		}
+		if(map.has("gate_out")){
+			array = map.getArray("gate_out");
+			gate_out = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 		}
 		if(map.has("dim_pos")){
 			array = map.getArray("dim_pos");
@@ -82,10 +92,20 @@ public class Maze {
 		map.add("raw", new JsonArray(rawsize.getX(), rawsize.getY(), rawsize.getZ()));
 		map.add("size", new JsonArray(size.getX(), size.getY(), size.getZ()));
 		if(entry != null){
-			map.add("entry", new JsonArray(entry.getX(), entry.getY(), entry.getZ()));
+			JsonArray array = new JsonArray();
+			entry.forEach(pos -> array.add(pos.asLong()));
+			map.add("entry", array);
 		}
 		if(exit != null){
-			map.add("exit", new JsonArray(exit.getX(), exit.getY(), exit.getZ()));
+			JsonArray array = new JsonArray();
+			exit.forEach(pos -> array.add(pos.asLong()));
+			map.add("exit", array);
+		}
+		if(gate_in != null){
+			map.add("gate_in", new JsonArray(gate_in.getX(), gate_in.getY(), gate_in.getZ()));
+		}
+		if(gate_out != null){
+			map.add("gate_out", new JsonArray(gate_out.getX(), gate_out.getY(), gate_out.getZ()));
 		}
 		if(orgpos != null){
 			map.add("dim_pos", new JsonArray(orgpos.getX(), orgpos.getY(), orgpos.getZ()));

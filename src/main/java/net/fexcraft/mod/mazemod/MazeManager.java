@@ -4,13 +4,13 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.UUID;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.serialization.DataResult;
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Vec3i;
@@ -20,12 +20,14 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.joml.Vector4i;
 
 /**
@@ -35,12 +37,13 @@ public class MazeManager {
 
 	public static HashMap<String, Maze> MAZES = new HashMap<>();
 	public static ArrayList<MazeInst> INSTANCES = new ArrayList<>();
+	public static HashMap<UUID, PlayerData> PLAYERS = new HashMap();
 	private static BlockPos CENTER = new BlockPos(0, 0 ,0);
 
 	public static void register(CommandContext<CommandSourceStack> context, boolean update) throws Exception{
 		context.getSource().sendSystemMessage(Component.literal("==================="));
 		String id = context.getArgument("id", String.class);
-		SelectionUtil.SelectionCache sel = SelectionUtil.get(context.getSource().getPlayer());
+		SelectionCache sel = getPlayerData(context.getSource().getPlayer()).selcache;
 		if(sel.first == null || sel.second == null){
 			context.getSource().sendFailure(Component.literal("Your selection is incomplete."));
 			return;
@@ -59,6 +62,8 @@ public class MazeManager {
 		maze.dimid = context.getSource().getPlayer().level().dimension();
 		maze.orgpos = new BlockPos(st.getX(), en.getY(), st.getZ());
 		maze.tppos = context.getSource().getPlayer().getOnPos();
+		maze.entry.clear();
+		maze.exit.clear();
 		context.getSource().sendSystemMessage(Component.literal("Selection cache reset."));
 		if(update) context.getSource().sendSystemMessage(Component.literal("Starting update of maze '" + id + "' ..."));
 		else context.getSource().sendSystemMessage(Component.literal("Starting registration of maze '" + id + "' ..."));
@@ -88,8 +93,8 @@ public class MazeManager {
 		MutableBlockPos pos = new MutableBlockPos();
 		ArrayList<BlockState> states = new ArrayList<>();
 		for(int px = 0; px < maze.rawsize.getX(); px++){
-			for(int py = 0; py < maze.rawsize.getX(); py++){
-				for(int pz = 0; pz < maze.rawsize.getX(); pz++){
+			for(int py = 0; py < maze.rawsize.getY(); py++){
+				for(int pz = 0; pz < maze.rawsize.getZ(); pz++){
 					BlockState state = world.getBlockState(pos.set(st.getX() + px, st.getY() + py, st.getZ() + pz));
 					int idx = states.indexOf(state);
 					if(idx < 0){
@@ -101,16 +106,22 @@ public class MazeManager {
 					tag.putInt("b", idx);
 					blks.add(tag);
 					if(state.getBlock() instanceof ChestBlock){
-						maze.chests.add(pos);
+						maze.chests.add(new BlockPos(pos));
 					}
-					else if(state.getBlock() == MazesMod.ENTRY_BLOCK.get()){
-						maze.entry = pos;
-					}
-					else if(state.getBlock() == MazesMod.EXIT_BLOCK.get()){
-						maze.exit = pos;
+					if(state.getBlock() instanceof EnrxitBlock){
+						if(((EnrxitBlock)state.getBlock()).exit) maze.exit.add(new BlockPos(pos));
+						else maze.entry.add(new BlockPos(pos));
 					}
 				}
 			}
+		}
+		if(maze.entry.isEmpty()){
+			context.getSource().sendSystemMessage(Component.literal("No Entry marker found, aborting."));
+			return;
+		}
+		if(maze.exit.isEmpty()){
+			context.getSource().sendSystemMessage(Component.literal("No Exit marker found, aborting."));
+			return;
 		}
 		com.put("blocks", blks);
 		ListTag sts = new ListTag();
@@ -166,12 +177,12 @@ public class MazeManager {
 		}
 	}
 
-	public static void create(CommandContext<CommandSourceStack> context, String template) throws IOException {
-		Maze maze = MAZES.get(template);
+	public static MazeInst create(Player player, Maze maze)/*CommandContext<CommandSourceStack> context, String template)*/ throws IOException {
+		/*Maze maze = MAZES.get(template);
 		if(maze == null){
 			context.getSource().sendFailure(Component.literal("Template not found."));
 			return;
-		}
+		}*/
 		Vector4i vec = new Vector4i();
 		vec.x = 0;
 		vec.z = 0;
@@ -182,12 +193,12 @@ public class MazeManager {
 			if(vec.x < fx) vec.x++;
 			else vec.z++;
 		}
-		context.getSource().sendSystemMessage(Component.literal("Free location found at: " + vec.x + "cx, " + vec.z + "cz"));
+		player.sendSystemMessage(Component.literal("Free location found at: " + vec.x + "cx, " + vec.z + "cz"));
 		MazeInst inst = new MazeInst(maze, new ChunkPos(vec.x, vec.z), new ChunkPos(vec.x + vec.w, vec.z + vec.y));
 		INSTANCES.add(inst);
-		context.getSource().sendSystemMessage(Component.literal("New Instance created, ID: " + INSTANCES.indexOf(inst)));
+		player.sendSystemMessage(Component.literal("New Instance created, ID: " + INSTANCES.indexOf(inst)));
 		//
-		context.getSource().sendSystemMessage(Component.literal("Starting map generation..."));
+		player.sendSystemMessage(Component.literal("Starting map generation..."));
 		HashMap<BlockPos, Integer> blocks = new HashMap<>();
 		CompoundTag compound = NbtIo.read(maze.getStatesFile());
 		ListTag list = (ListTag)compound.get("blocks");
@@ -201,7 +212,7 @@ public class MazeManager {
 			states.add(BlockState.CODEC.parse(NbtOps.INSTANCE, sts.get(t)).result().get());
 		}
 		//
-		Level world = context.getSource().getServer().getLevel(MazesMod.MAZES_LEVEL);
+		Level world = ServerLifecycleHooks.getCurrentServer().getLevel(MazesMod.MAZES_LEVEL);
 		MutableBlockPos pos = new MutableBlockPos();
 		MutableBlockPos blk = new MutableBlockPos();
 		int sx = vec.x * 16;
@@ -227,7 +238,9 @@ public class MazeManager {
 				}
 			}
 		}
-		context.getSource().sendSystemMessage(Component.literal("Map generated."));
+		inst.startpos = new BlockPos(sx, my, sz).offset(maze.entry.get(0));
+		player.sendSystemMessage(Component.literal("Map generated."));
+		return inst;
 	}
 
 	private static int getFurthestX(){
@@ -247,6 +260,39 @@ public class MazeManager {
 			if(vec.x >= sx  && vec.x + vec.w <= ex && vec.z >= sz && vec.z + vec.y <= ez) return true;
 		}
 		return false;
+	}
+
+	public static Maze getMazeFor(BlockPos pos, boolean exit){
+		BlockPos gpo = null;
+		for(Maze temp : MAZES.values()){
+			gpo = exit ? temp.gate_out : temp.gate_in;
+			if(gpo != null && gpo.equals(pos)) return temp;
+		}
+		return null;
+	}
+
+	public static MazeInst getFreeInst(Player player, Maze maze){
+		int count = 0;
+		for(MazeInst inst : INSTANCES){
+			if(inst.root == maze){
+				if(inst.players.isEmpty()) return inst;
+				count++;
+			}
+		}
+		if(count < maze.instances){
+			try{
+				return create(player, maze);
+			}
+			catch(IOException e){
+				player.sendSystemMessage(Component.literal("Error occurred during instance generation, contact an admin."));
+				e.printStackTrace();
+			}
+		}
+		return null;
+	}
+
+	public static PlayerData getPlayerData(Player player){
+		return PLAYERS.get(player.getGameProfile().getId());
 	}
 
 }

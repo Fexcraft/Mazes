@@ -40,8 +40,7 @@ public class MazeInst {
 		start = new ChunkPos(arr.get(0).integer_value(), arr.get(1).integer_value());
 		arr = map.getArray("end");
 		end = new ChunkPos(arr.get(0).integer_value(), arr.get(1).integer_value());
-		arr = map.getArray("zeropos");
-		zeropos = new BlockPos(arr.get(0).integer_value(), arr.get(1).integer_value(), arr.get(2).integer_value());
+		zeropos = Maze.frArray(map, "zeropos");
 	}
 
 	public JsonMap save(){
@@ -50,7 +49,7 @@ public class MazeInst {
 		map.add("root", root.id);
 		map.add("start", new JsonArray(start.x, start.z));
 		map.add("end", new JsonArray(end.x, end.z));
-		map.add("zeropos", new JsonArray(zeropos.getX(), zeropos.getY(), zeropos.getZ()));
+		Maze.toArray(map, "zeropos", zeropos);
 		return map;
 	}
 

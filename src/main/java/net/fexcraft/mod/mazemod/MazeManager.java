@@ -202,20 +202,17 @@ public class MazeManager {
 		player.sendSystemMessage(Component.literal("Starting map generation..."));
 		HashMap<BlockPos, Integer> blocks = new HashMap<>();
 		CompoundTag compound = NbtIo.read(maze.getStatesFile());
-		player.sendSystemMessage(Component.literal("0"));
 		ListTag list = (ListTag)compound.get("blocks");
 		for(int t = 0; t < list.size(); t++){
 			CompoundTag tag = list.getCompound(t);
 			blocks.put(BlockPos.of(tag.getLong("p")), tag.getInt("b"));
 		}
-		player.sendSystemMessage(Component.literal("0"));
 		ArrayList<BlockState> states = new ArrayList<>();
 		ListTag sts = (ListTag)compound.get("states");
 		for(int t = 0; t < sts.size(); t++){
 			states.add(BlockState.CODEC.parse(NbtOps.INSTANCE, sts.get(t)).result().get());
 		}
 		//
-		player.sendSystemMessage(Component.literal("0"));
 		Level world = ServerLifecycleHooks.getCurrentServer().getLevel(MazesMod.MAZES_LEVEL);
 		MutableBlockPos pos = new MutableBlockPos();
 		MutableBlockPos blk = new MutableBlockPos();
@@ -223,7 +220,6 @@ public class MazeManager {
 		int sz = vec.z * 16;
 		int my = maze.orgpos.getY();
 		inst.zeropos = new BlockPos(sx, my, sz);
-		player.sendSystemMessage(Component.literal("0"));
 		for(int x = -4; x < maze.rawsize.getX() + 4; x++){
 			for(int z = -4; z < maze.rawsize.getZ() + 4; z++){
 				for(int y = -4; y < maze.rawsize.getY() + 4; y++){
@@ -236,7 +232,6 @@ public class MazeManager {
 				}
 			}
 		}
-		player.sendSystemMessage(Component.literal("0"));
 		for(int x = 0; x < maze.rawsize.getX(); x++){
 			for(int z = 0; z < maze.rawsize.getZ(); z++){
 				for(int y = 0; y < maze.rawsize.getY(); y++){

@@ -36,7 +36,7 @@ import org.joml.Vector4i;
 public class MazeManager {
 
 	public static HashMap<String, Maze> MAZES = new HashMap<>();
-	public static ArrayList<MazeInst> INSTANCES = new ArrayList<>();
+	public static HashMap<UUID, MazeInst> INSTANCES = new HashMap();
 	public static HashMap<UUID, PlayerData> PLAYERS = new HashMap();
 	private static BlockPos CENTER = new BlockPos(0, 0 ,0);
 
@@ -157,7 +157,8 @@ public class MazeManager {
 		if(!folder.exists()) folder.mkdirs();
 		for(File file : folder.listFiles()){
 			try{
-				INSTANCES.add(new MazeInst(JsonHandler.parse(file)));
+				MazeInst inst = new MazeInst(JsonHandler.parse(file));
+				INSTANCES.put(inst.uuid, inst);
 			}
 			catch(Exception e){
 				e.printStackTrace();
@@ -173,8 +174,8 @@ public class MazeManager {
 		}
 		folder = new File(FMLPaths.CONFIGDIR.get().toFile(), "/maze_instances");
 		if(!folder.exists()) folder.mkdirs();
-		for(int i = 0; i < INSTANCES.size(); i++){
-			JsonHandler.print(new File(folder, "inst_" + i + ".json"), INSTANCES.get(i).save(), PrintOption.DEFAULT);
+		for(MazeInst inst : INSTANCES.values()){
+			JsonHandler.print(inst.getFile(), inst.save(), PrintOption.DEFAULT);
 		}
 	}
 
@@ -195,9 +196,9 @@ public class MazeManager {
 			else vec.z++;
 		}
 		player.sendSystemMessage(Component.literal("Free location found at: " + vec.x + "cx, " + vec.z + "cz"));
-		MazeInst inst = new MazeInst(maze, new ChunkPos(vec.x, vec.z), new ChunkPos(vec.x + vec.w, vec.z + vec.y));
-		INSTANCES.add(inst);
-		player.sendSystemMessage(Component.literal("New Instance created, ID: " + INSTANCES.indexOf(inst)));
+		MazeInst inst = new MazeInst(getNewUUID(), maze, new ChunkPos(vec.x, vec.z), new ChunkPos(vec.x + vec.w, vec.z + vec.y));
+		INSTANCES.put(inst.uuid, inst);
+		player.sendSystemMessage(Component.literal("New Instance created, ID: " + inst.uuid));
 		//
 		player.sendSystemMessage(Component.literal("Starting map generation..."));
 		HashMap<BlockPos, Integer> blocks = new HashMap<>();
@@ -244,16 +245,22 @@ public class MazeManager {
 		return inst;
 	}
 
+	private static UUID getNewUUID(){
+		UUID uuid = UUID.randomUUID();
+		while(INSTANCES.containsKey(uuid)) uuid = UUID.randomUUID();
+		return uuid;
+	}
+
 	private static int getFurthestX(){
 		int v = 0;
-		for(MazeInst inst : INSTANCES){
+		for(MazeInst inst : INSTANCES.values()){
 			if(inst.end.x > v) v = inst.end.x;
 		}
 		return v;
 	}
 
 	private static boolean collides(Vector4i vec){
-		for(MazeInst inst : INSTANCES){
+		for(MazeInst inst : INSTANCES.values()){
 			int sx = inst.start.x - 6;
 			int sz = inst.start.z - 6;
 			int ex = inst.end.x + 6;
@@ -274,7 +281,7 @@ public class MazeManager {
 
 	public static MazeInst getFreeInst(Player player, Maze maze){
 		int count = 0;
-		for(MazeInst inst : INSTANCES){
+		for(MazeInst inst : INSTANCES.values()){
 			if(inst.root == maze){
 				if(inst.players.isEmpty()) return inst;
 				count++;

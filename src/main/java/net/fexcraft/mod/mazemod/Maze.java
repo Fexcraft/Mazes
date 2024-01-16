@@ -20,7 +20,7 @@ import static net.minecraft.core.registries.Registries.DIMENSION;
  */
 public class Maze {
 
-	public Vec3i rawsize, size;
+	public BlockPos rawsize, size;
 	public ArrayList<BlockPos> entry = new ArrayList<>();
 	public ArrayList<BlockPos> exit = new ArrayList<>();
 	public BlockPos gate_in;
@@ -40,39 +40,24 @@ public class Maze {
 
 	public Maze(JsonMap map){
 		id = map.get("id").string_value();
-		JsonArray array = map.getArray("raw");
-		rawsize = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		array = map.getArray("size");
-		size = new Vec3i(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
+		rawsize = frArray(map, "raw");
+		size = frArray(map, "size");
 		if(map.has("entry")){
 			entry.clear();
-			map.getArray("entry").value.forEach(val -> entry.add(BlockPos.of(val.long_value())));
+			map.getArray("entry").value.forEach(val -> entry.add(frArray(val.asArray())));
 		}
 		if(map.has("exit")){
 			exit.clear();
-			map.getArray("exit").value.forEach(val -> exit.add(BlockPos.of(val.long_value())));
+			map.getArray("exit").value.forEach(val -> exit.add(frArray(val.asArray())));
 		}
-		if(map.has("gate_in")){
-			array = map.getArray("gate_in");
-			gate_in = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		}
-		if(map.has("gate_out")){
-			array = map.getArray("gate_out");
-			gate_out = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		}
-		if(map.has("dim_pos")){
-			array = map.getArray("dim_pos");
-			orgpos = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		}
-		if(map.has("tp_pos")){
-			array = map.getArray("tp_pos");
-			orgpos = new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
-		}
+		gate_in = frArray(map, "gate_in");
+		gate_out = frArray(map, "gate_out");
+		orgpos = frArray(map, "dim_pos");
+		tppos = frArray(map, "tp_pos");
 		dimid = ResourceKey.create(DIMENSION, new ResourceLocation(map.getString("dim_id", null)));
 		if(map.has("chests")){
-			array = map.getArray("chests");
-			array.value.forEach(val -> {
-				chests.add(BlockPos.of(val.long_value()));
+			map.getArray("chests").value.forEach(val -> {
+				chests.add(frArray(val.asArray()));
 			});
 		}
 	}
@@ -89,39 +74,48 @@ public class Maze {
 		JsonMap map = new JsonMap();
 		map.add("id", id);
 		map.add("saved", Time.getAsString(Time.getDate()));
-		map.add("raw", new JsonArray(rawsize.getX(), rawsize.getY(), rawsize.getZ()));
-		map.add("size", new JsonArray(size.getX(), size.getY(), size.getZ()));
+		toArray(map, "raw", rawsize);
+		toArray(map, "size", size);
 		if(entry != null){
 			JsonArray array = new JsonArray();
-			entry.forEach(pos -> array.add(pos.asLong()));
+			entry.forEach(pos -> array.add(toArray(pos)));
 			map.add("entry", array);
 		}
 		if(exit != null){
 			JsonArray array = new JsonArray();
-			exit.forEach(pos -> array.add(pos.asLong()));
+			exit.forEach(pos -> array.add(toArray(pos)));
 			map.add("exit", array);
 		}
-		if(gate_in != null){
-			map.add("gate_in", new JsonArray(gate_in.getX(), gate_in.getY(), gate_in.getZ()));
-		}
-		if(gate_out != null){
-			map.add("gate_out", new JsonArray(gate_out.getX(), gate_out.getY(), gate_out.getZ()));
-		}
-		if(orgpos != null){
-			map.add("dim_pos", new JsonArray(orgpos.getX(), orgpos.getY(), orgpos.getZ()));
-		}
-		if(tppos != null){
-			map.add("tp_pos", new JsonArray(tppos.getX(), tppos.getY(), tppos.getZ()));
-		}
+		toArray(map, "gate_in", gate_in);
+		toArray(map, "gate_out", gate_out);
+		toArray(map, "dim_pos", orgpos);
+		toArray(map, "tp_pos", tppos);
 		if(dimid != null){
 			map.add("dim_id", dimid.location().toString());
 		}
 		if(chests.size() > 0){
 			JsonArray array = new JsonArray();
-			for(BlockPos pos : chests) array.add(pos.asLong());
+			for(BlockPos pos : chests) array.add(toArray(pos));
 			map.add("chests", array);
 		}
 		return map;
+	}
+
+	public void toArray(JsonMap map, String key, BlockPos pos){
+		if(pos != null) map.add(key, toArray(pos));
+	}
+
+	public JsonArray toArray(BlockPos pos){
+		return new JsonArray.Flat(pos.getX(), pos.getY(), pos.getZ());
+	}
+
+	public BlockPos frArray(JsonMap map, String key){
+		if(!map.has(key)) return null;
+		return frArray(map.getArray(key));
+	}
+
+	public BlockPos frArray(JsonArray array){
+		return new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 	}
 
 }

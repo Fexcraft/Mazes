@@ -1,7 +1,7 @@
 package net.fexcraft.mod.mazemod;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Random;
 
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
@@ -17,7 +17,7 @@ import net.minecraft.world.level.storage.loot.LootDataResolver;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
 public class MazeInst {
@@ -47,8 +47,8 @@ public class MazeInst {
 		JsonMap map = new JsonMap();
 		map.add("saved", Time.getAsString(Time.getDate()));
 		map.add("root", root.id);
-		map.add("start", new JsonArray(start.x, start.z));
-		map.add("end", new JsonArray(end.x, end.z));
+		map.add("start", new JsonArray.Flat(start.x, start.z));
+		map.add("end", new JsonArray.Flat(end.x, end.z));
 		Maze.toArray(map, "zeropos", zeropos);
 		return map;
 	}
@@ -63,7 +63,7 @@ public class MazeInst {
 		for(BlockPos c : root.chests){
 			pos = pos.set(c.getX() + zeropos.getX(), c.getY() + zeropos.getY(), c.getZ() + zeropos.getZ());
 			level.setChunkForced(pos.getX() >> 4, pos.getZ() >> 4, true);
-			ChestBlockEntity chest = (ChestBlockEntity)level.getBlockEntity(pos);
+			ChestBlockEntity chest = (ChestBlockEntity)level.getExistingBlockEntity(pos);
 			if(chest != null) table.fill(chest, param, 0);
 			else MazesMod.LOGGER.info(pos.toShortString() + " / " + level.dimension().location() + " has no chest.");
 			level.setChunkForced(pos.getX() >> 4, pos.getZ() >> 4, false);

@@ -2,6 +2,7 @@ package net.fexcraft.mod.mazemod;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.UUID;
 
 import net.fexcraft.app.json.JsonArray;
 import net.fexcraft.app.json.JsonMap;
@@ -27,11 +28,13 @@ public class MazeInst {
 	public ChunkPos end;
 	public ArrayList<Player> players = new ArrayList<>();
 	public BlockPos zeropos;
+	public final UUID uuid;
 
-	public MazeInst(Maze maze, ChunkPos s, ChunkPos e){
+	public MazeInst(UUID id, Maze maze, ChunkPos s, ChunkPos e){
 		root = maze;
 		start = s;
 		end = e;
+		uuid = id;
 	}
 
 	public MazeInst(JsonMap map){
@@ -41,6 +44,7 @@ public class MazeInst {
 		arr = map.getArray("end");
 		end = new ChunkPos(arr.get(0).integer_value(), arr.get(1).integer_value());
 		zeropos = Maze.frArray(map, "zeropos");
+		uuid = UUID.fromString(map.get("uuid").string_value());
 	}
 
 	public JsonMap save(){
@@ -50,6 +54,7 @@ public class MazeInst {
 		map.add("start", new JsonArray.Flat(start.x, start.z));
 		map.add("end", new JsonArray.Flat(end.x, end.z));
 		Maze.toArray(map, "zeropos", zeropos);
+		map.add("uuid", uuid.toString());
 		return map;
 	}
 
@@ -70,4 +75,7 @@ public class MazeInst {
 		}
 	}
 
+	public File getFile(){
+		return new File(FMLPaths.CONFIGDIR.get().toFile(), "/maze_instances/" + uuid + ".json");
+	}
 }

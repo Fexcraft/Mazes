@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.common.util.ITeleporter;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 import java.util.function.Function;
 
@@ -25,8 +26,8 @@ public class PlayerData {
 
 	public void teleport(Player player, MazeInst to){
 		try{
-			ServerLevel lvl = player.getServer().getLevel(MAZES_LEVEL);
-			player.moveTo(to.startpos.getCenter());
+			ServerLevel lvl = ServerLifecycleHooks.getCurrentServer().getLevel(MAZES_LEVEL);
+			player.moveTo(to.zeropos.offset(to.root.entry.get(0)).getCenter());
 			player.changeDimension(lvl, new ITeleporter() {
 				@Override
 				public Entity placeEntity(Entity entity, ServerLevel currentWorld, ServerLevel destWorld, float yaw, Function<Boolean, Entity> repositionEntity){

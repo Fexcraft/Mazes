@@ -28,6 +28,7 @@ public class EnrxitBlock extends Block {
 			.forceSolidOn()
 			.noCollission()
 			.strength(64)
+			.noOcclusion()
 			.pushReaction(PushReaction.IGNORE));
 		exit = isexit;
 	}
@@ -52,12 +53,19 @@ public class EnrxitBlock extends Block {
 				player.sendSystemMessage(Component.literal("Gate not linked. (" + pos.toShortString() + ")"));
 				player.sendSystemMessage(Component.literal("Use '/mz link <id>' to link to a template."));
 			}
+			else if(maze.gate_out == null){
+				player.sendSystemMessage(Component.literal("Exit gate is missing."));
+			}
+			else if(maze.gate_in == null){
+				player.sendSystemMessage(Component.literal("Entry gate is missing."));
+			}
 			else if(!exit){
 				MazeInst inst = MazeManager.getFreeInst(player, maze);
 				if(inst == null){
 					player.sendSystemMessage(Component.literal("All instances are occupied."));
 				}
 				else{
+					inst.refill();
 					data.teleport(player, inst);
 					ArrayList<Player> party = Parties.PARTIES.get(player.getGameProfile().getId());
 				}

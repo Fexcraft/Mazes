@@ -101,20 +101,20 @@ public class Maze {
 		return map;
 	}
 
-	public void toArray(JsonMap map, String key, BlockPos pos){
+	public static void toArray(JsonMap map, String key, BlockPos pos){
 		if(pos != null) map.add(key, toArray(pos));
 	}
 
-	public JsonArray toArray(BlockPos pos){
+	public static JsonArray toArray(BlockPos pos){
 		return new JsonArray.Flat(pos.getX(), pos.getY(), pos.getZ());
 	}
 
-	public BlockPos frArray(JsonMap map, String key){
+	public static BlockPos frArray(JsonMap map, String key){
 		if(!map.has(key)) return null;
 		return frArray(map.getArray(key));
 	}
 
-	public BlockPos frArray(JsonArray array){
+	public static BlockPos frArray(JsonArray array){
 		return new BlockPos(array.get(0).integer_value(), array.get(1).integer_value(), array.get(2).integer_value());
 	}
 

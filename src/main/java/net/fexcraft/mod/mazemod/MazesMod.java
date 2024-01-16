@@ -9,10 +9,16 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.logging.LogUtils;
 import net.fexcraft.app.json.JsonHandler;
 import net.fexcraft.app.json.JsonHandler.PrintOption;
@@ -348,50 +354,45 @@ public class MazesMod {
                             return 0;
                         }
                         context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
-                        int idx = 0;
-                        for(MazeInst inst : MazeManager.INSTANCES){
+                        for(MazeInst inst : MazeManager.INSTANCES.values()){
                             context.getSource().sendSystemMessage(Component.literal("---- ----- -----"));
-                            context.getSource().sendSystemMessage(Component.literal("Index: " + (idx++) + "; Root: " + inst.root.id));
+                            context.getSource().sendSystemMessage(Component.literal("UUID: " + inst.uuid));
+                            context.getSource().sendSystemMessage(Component.literal("Root: " + inst.root.id));
                             context.getSource().sendSystemMessage(Component.literal("Start: " + inst.start.x + ", " + inst.start.z));
                             context.getSource().sendSystemMessage(Component.literal("End: " + inst.end.x + ", " + inst.end.z));
                             context.getSource().sendSystemMessage(Component.literal("Players (inside): " + inst.players.size()));
                         }
                         return 0;
                     }))
-                    .then(literal("delete").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                        int idx = context.getArgument("idx", Integer.class);
-                        if(idx >= MazeManager.INSTANCES.size()){
-                            context.getSource().sendFailure(Component.literal("Invalid Index specified."));
+                    .then(literal("delete")
+                        .then(argument("idx", StringArgumentType.word()).suggests(MAZE_INST_SUGGESTER)
+                        .executes(context -> {
+                            UUID idx = UUID.fromString(context.getArgument("id", String.class));
+                            if(!MazeManager.INSTANCES.containsKey(idx)){
+                                context.getSource().sendFailure(Component.literal("Invalid UUID specified."));
+                                return 0;
+                            }
+                            MazeInst inst = MazeManager.INSTANCES.get(idx);
+                            if(inst.players.size() > 0){
+                                context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
+                                context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst stop " + idx + "'"));
+                                return 0;
+                            }
+                            MazeManager.INSTANCES.remove(inst);
+                            inst.getFile().delete();
+                            context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
                             return 0;
-                        }
-                        MazeInst inst = MazeManager.INSTANCES.get(idx);
-                        if(inst.players.size() > 0){
-                            context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
-                            context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst stop " + idx + "'"));
+                        })
+                    ))
+                    .then(literal("stop")
+                        .then(argument("idx", StringArgumentType.word()).suggests(MAZE_INST_SUGGESTER)
+                        .executes(context -> {
+                            UUID idx = UUID.fromString(context.getArgument("id", String.class));
+                            MazeInst inst = MazeManager.INSTANCES.get(idx);
+                            //
                             return 0;
-                        }
-                        MazeManager.INSTANCES.remove(inst);
-                        context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
-                        return 0;
-                    })))
-                    .then(literal("stop").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                        int idx = context.getArgument("idx", Integer.class);
-                        MazeInst inst = MazeManager.INSTANCES.get(idx);
-                        //
-                        return 0;
-                    })))
-                    /*.then(literal("pause").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                        int idx = context.getArgument("idx", Integer.class);
-                        MazeInst inst = MazeManager.INSTANCES.get(idx);
-                        //
-                        return 0;
-                    })))
-                    .then(literal("resume").then(argument("idx", IntegerArgumentType.integer(0, Integer.MAX_VALUE)).executes(context -> {
-                        int idx = context.getArgument("idx", Integer.class);
-                        MazeInst inst = MazeManager.INSTANCES.get(idx);
-                        //
-                        return 0;
-                    })))*/
+                        })
+                    ))
                 )
             );
             event.getDispatcher().register(literal("mz-party").requires(con -> con.getPlayer() != null)
@@ -490,6 +491,14 @@ public class MazesMod {
             if(ServerLifecycleHooks.getCurrentServer().isSingleplayer()) return true;
             return ServerLifecycleHooks.getCurrentServer().getPlayerList().isOp(player.getGameProfile());
         }
+
+        public static SuggestionProvider<CommandSourceStack> MAZE_INST_SUGGESTER = new SuggestionProvider<>() {
+            @Override
+            public CompletableFuture<Suggestions> getSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) throws CommandSyntaxException{
+                for(UUID uuid : MazeManager.INSTANCES.keySet()) builder.suggest(uuid.toString());
+                return builder.buildFuture();
+            }
+        };
 
     }
 

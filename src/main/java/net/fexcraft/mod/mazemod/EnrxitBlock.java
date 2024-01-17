@@ -35,7 +35,7 @@ public class EnrxitBlock extends Block {
 
 	@Override
 	public void entityInside(BlockState state, Level world, BlockPos pos, Entity entity){
-		if(entity instanceof Player == false) return;
+		if(world.isClientSide || entity instanceof Player == false) return;
 		Player player = (Player)entity;
 		PlayerData data = MazeManager.getPlayerData(player);
 		if(data.cooldown > 0){

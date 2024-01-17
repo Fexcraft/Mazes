@@ -140,6 +140,13 @@ public class MazesMod {
         public static void onPlayerLeave(PlayerLoggedOutEvent event){
             if(event.getEntity().level().isClientSide) return;
             MazeManager.PLAYERS.remove(event.getEntity().getGameProfile().getId());
+            UUID uuid = event.getEntity().getGameProfile().getId();
+            if(Parties.PARTYIN.containsKey(uuid)){
+                Parties.leave(event.getEntity());
+            }
+            if(Parties.PARTIES.containsKey(uuid)){
+                Parties.disband(event.getEntity(), uuid);
+            }
         }
 
         @SubscribeEvent

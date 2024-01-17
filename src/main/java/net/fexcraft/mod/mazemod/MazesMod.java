@@ -190,7 +190,7 @@ public class MazesMod {
                     })
                 ))
                 .then(literal("update")
-                    .then(argument("id", StringArgumentType.word())
+                    .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)
                     .executes(context -> {
                         try{
                             Player player = context.getSource().getPlayer();
@@ -208,7 +208,7 @@ public class MazesMod {
                     })
                 ))
                 .then(literal("link")
-                    .then(argument("id", StringArgumentType.word())
+                    .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)
                     .executes(context -> {
                         Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
                         PlayerData data = MazeManager.getPlayerData(context.getSource().getPlayer());
@@ -227,7 +227,7 @@ public class MazesMod {
                     })
                 ))
                 .then(literal("config")
-                    .then(argument("id", StringArgumentType.word())
+                    .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)
                         .then(literal("instances")
                         .then(argument("value", IntegerArgumentType.integer(1, 64))
                         .executes(context -> {
@@ -256,7 +256,7 @@ public class MazesMod {
                         })))
                 ))
                 .then(literal("delete")
-                    .then(argument("id", StringArgumentType.word())
+                    .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)
                     .executes(context -> {
                         String id = context.getArgument("id", String.class);
                         Maze maze = MazeManager.MAZES.remove(id);
@@ -278,7 +278,7 @@ public class MazesMod {
                         return 0;
                     })
                 ))
-                .then(literal("tp-dim").executes(context -> {
+                .then(literal("tpdim").executes(context -> {
                     try{
                         Player player = context.getSource().getPlayer();
                         ServerLevel lvl = context.getSource().getServer().getLevel(player.level().dimension().equals(MazesMod.MAZES_LEVEL) ? OVERWORLD : MAZES_LEVEL);
@@ -290,7 +290,7 @@ public class MazesMod {
                     return 0;
                 }))
                 .then(literal("tp")
-                    .then(argument("id", StringArgumentType.word())
+                    .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)
                     .executes(context -> {
                         String id = context.getArgument("id", String.class);
                         Maze maze = MazeManager.MAZES.get(id);
@@ -300,10 +300,12 @@ public class MazesMod {
                         else{
                             try{
                                 Player player = context.getSource().getPlayer();
-                                player.moveTo(maze.orgpos.getCenter());
                                 if(!player.level().dimension().equals(OVERWORLD)){
                                     ServerLevel lvl = context.getSource().getServer().getLevel(OVERWORLD);
-                                    context.getSource().getPlayer().changeDimension(lvl, new ITeleporter(){});
+                                    context.getSource().getPlayer().changeDimension(lvl, new Teleporter(maze.orgpos.getCenter()));
+                                }
+                                else{
+                                    player.moveTo(maze.orgpos.getCenter());
                                 }
                             }
                             catch(Throwable e){
@@ -334,23 +336,9 @@ public class MazesMod {
                     return 0;
                 }))
                 .then(literal("inst")
-                    /*.then(literal("create").then(argument("template", StringArgumentType.word()).executes(context -> {
-                        try{
-                            MazeManager.create(context, context.getArgument("template", String.class));
-                        }
-                        catch(Throwable e){
-                            LOGGER.error(e.getMessage());
-                            for(StackTraceElement str : e.getStackTrace()){
-                                LOGGER.error(str.toString());
-                            }
-                            context.getSource().sendFailure(Component.literal("Errors occurred during command execution."));
-                        }
-                        return 0;
-                    })))*///instances will be created automatically
                     .then(literal("list").executes(context -> {
                         if(MazeManager.INSTANCES.isEmpty()){
                             context.getSource().sendFailure(Component.literal("No maze instances on this server."));
-                            //context.getSource().sendFailure(Component.literal("Use '/mz-inst create <template-id> to create one!'"));
                             return 0;
                         }
                         context.getSource().sendSystemMessage(Component.literal("Maze Instances:"));
@@ -516,6 +504,14 @@ public class MazesMod {
             if(ServerLifecycleHooks.getCurrentServer().isSingleplayer()) return true;
             return ServerLifecycleHooks.getCurrentServer().getPlayerList().isOp(player.getGameProfile());
         }
+
+        public static SuggestionProvider<CommandSourceStack> MAZE_TEMP_SUGGESTER = new SuggestionProvider<>() {
+            @Override
+            public CompletableFuture<Suggestions> getSuggestions(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) throws CommandSyntaxException{
+                for(String id : MazeManager.MAZES.keySet()) builder.suggest(id);
+                return builder.buildFuture();
+            }
+        };
 
         public static SuggestionProvider<CommandSourceStack> MAZE_INST_SUGGESTER = new SuggestionProvider<>() {
             @Override

@@ -283,7 +283,7 @@ public class MazeManager {
 		int count = 0;
 		for(MazeInst inst : INSTANCES.values()){
 			if(inst.root == maze){
-				if(inst.players.isEmpty()) return inst;
+				if(inst.players.isEmpty() && !inst.paused) return inst;
 				count++;
 			}
 		}

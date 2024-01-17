@@ -436,7 +436,7 @@ public class MazesMod {
             event.getDispatcher().register(literal("mz-party").requires(con -> con.getPlayer() != null)
                 .then(literal("join").then(argument("code", StringArgumentType.word()).executes(context -> {
                     try{
-                        Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
+                        Parties.PartyLead in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
                         if(in != null){
                             Parties.leave(context.getSource().getPlayer());
                         }
@@ -467,7 +467,7 @@ public class MazesMod {
                     return 0;
                 }))
                 .then(literal("disband").executes(context -> {
-                    ArrayList<Player> party = Parties.PARTIES.get(context.getSource().getPlayer().getGameProfile().getId());
+                    ArrayList<UUID> party = Parties.PARTIES.get(context.getSource().getPlayer().getGameProfile().getId());
                     if(party == null || party.size() == 0){
                         context.getSource().sendSystemMessage(Component.literal("No party members to disband."));
                     }
@@ -478,7 +478,7 @@ public class MazesMod {
                     return 0;
                 }))
                 .then(literal("leave").executes(context -> {
-                    Player in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
+                    Parties.PartyLead in = Parties.PARTYIN.get(context.getSource().getPlayer().getGameProfile().getId());
                     if(in == null){
                         context.getSource().sendSystemMessage(Component.literal("You are not in a party!"));
                     }
@@ -489,7 +489,7 @@ public class MazesMod {
                 }))
                 .then(literal("status").executes(context -> {
                     UUID uuid = context.getSource().getPlayer().getGameProfile().getId();
-                    ArrayList<Player> party = Parties.PARTIES.get(uuid);
+                    ArrayList<UUID> party = Parties.PARTIES.get(uuid);
                     PlayerData data = MazeManager.getPlayerData(context.getSource().getPlayer());
                     String code = Parties.CODES.get(uuid);
                     if(code == null && !data.informed){
@@ -499,19 +499,20 @@ public class MazesMod {
                     }
                     if(code != null) context.getSource().sendSystemMessage(Component.literal("Your Invite Code: " + code));
                     if(party == null){
-                        Player in = Parties.PARTYIN.get(uuid);
+                        Parties.PartyLead in = Parties.PARTYIN.get(uuid);
                         if(in == null){
                             context.getSource().sendSystemMessage(Component.literal("No Party Members."));
                         }
                         else{
-                            context.getSource().sendSystemMessage(Component.literal("Currently in " + in.getDisplayName() + "'s Party."));
+                            context.getSource().sendSystemMessage(Component.literal("Currently in " + in.name() + "'s Party."));
                         }
                     }
                     else{
                         context.getSource().sendSystemMessage(Component.literal("Party Members: " + party.size()));
                         context.getSource().sendSystemMessage(Component.literal("Use '/mz-party disband' to disband."));
-                        for(Player player : party){
-                            context.getSource().sendSystemMessage(Component.literal("- " + player.getDisplayName()));
+                        for(UUID player : party){
+                            Player ply = context.getSource().getServer().getPlayerList().getPlayer(player);
+                            context.getSource().sendSystemMessage(Component.literal("- " + (ply == null ? player : ply.getGameProfile().getName())));
                         }
                     }
                     return 0;

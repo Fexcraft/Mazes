@@ -255,7 +255,7 @@ public class MazesMod {
                             return 0;
                         })))
                         .then(literal("loottable")
-                        .then(argument("id", StringArgumentType.word())
+                        .then(argument("value", StringArgumentType.word())
                         .executes(context -> {
                             Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
                             if(maze != null){

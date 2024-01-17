@@ -222,7 +222,7 @@ public class MazesMod {
                             context.getSource().sendSystemMessage(Component.literal("Maze entry Gate set."));
                             context.getSource().sendSystemMessage(Component.literal(maze.gate_in.toShortString()));
                         }
-                        data.last = null;
+                        if(!data.lexit) data.last = null;
                         return 0;
                     })
                 ))
@@ -254,6 +254,31 @@ public class MazesMod {
                             }
                             return 0;
                         })))
+                        .then(literal("loottable")
+                        .then(argument("id", StringArgumentType.word())
+                        .executes(context -> {
+                            Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
+                            if(maze != null){
+                                maze.loottable = context.getArgument("value", String.class);
+                                context.getSource().sendSystemMessage(Component.literal("Maze loot-table updated to " + maze.loottable));
+                            }
+                            else{
+                                context.getSource().sendFailure(Component.literal("Maze template not found."));
+                            }
+                            return 0;
+                        })))
+                        .then(literal("def-loottable")
+                        .executes(context -> {
+                            Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
+                            if(maze != null){
+                                maze.loottable = null;
+                                context.getSource().sendSystemMessage(Component.literal("Maze loot-table reset to " + maze.id));
+                            }
+                            else{
+                                context.getSource().sendFailure(Component.literal("Maze template not found."));
+                            }
+                            return 0;
+                        }))
                 ))
                 .then(literal("delete")
                     .then(argument("id", StringArgumentType.word()).suggests(MAZE_TEMP_SUGGESTER)

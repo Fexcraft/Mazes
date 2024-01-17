@@ -2,6 +2,7 @@ package net.fexcraft.mod.mazemod;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -12,8 +13,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * @author Ferdinand Calo' (FEX___96)
@@ -65,9 +68,25 @@ public class EnrxitBlock extends Block {
 					player.sendSystemMessage(Component.literal("All instances are occupied."));
 				}
 				else{
-					inst.refill();
-					data.teleport(player, inst);
-					ArrayList<Player> party = Parties.PARTIES.get(player.getGameProfile().getId());
+					Parties.PartyLead lead = Parties.PARTYIN.get(player.getGameProfile().getId());
+					if(lead != null){
+						player.sendSystemMessage(Component.literal("Your party leader has to enter the gate!"));
+					}
+					else{
+						inst.refill();
+						data.teleport(player, inst);
+						ArrayList<UUID> party = Parties.PARTIES.get(player.getGameProfile().getId());
+						if(party != null){
+							Player ply = null;
+							for(UUID uuid : party){
+								ply = ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(uuid);
+								if(ply == null) continue;
+								data = MazeManager.getPlayerData(ply);
+								if(data == null) continue;
+								data.teleport(ply, inst);
+							}
+						}
+					}
 				}
 			}
 		}

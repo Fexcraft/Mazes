@@ -31,7 +31,7 @@ public class Parties {
 		CODES.put(id, newcode);
 	}
 
-	public static void disband(ServerPlayer lead, UUID id){
+	public static void disband(Player lead, UUID id){
 		var party = Parties.PARTIES.remove(id);
 		Player ply = null;
 		for(UUID player : party){
@@ -42,7 +42,7 @@ public class Parties {
 		CODES.remove(id);
 	}
 
-	public static void leave(ServerPlayer player){
+	public static void leave(Player player){
 		PartyLead in = PARTYIN.get(player.getGameProfile().getId());
 		Player mem = null;
 		var party = PARTIES.get(in.uuid);

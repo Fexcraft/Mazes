@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.levelgen.feature.MonsterRoomFeature;
 import net.minecraft.world.level.storage.loot.LootDataResolver;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.LootTable;
@@ -63,16 +64,25 @@ public class MazeInst {
 		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
 		ServerLevel level = server.getLevel(MazesMod.MAZES_LEVEL);
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		LootDataResolver res = server.getLootData();
-		LootTable table = res.getLootTable(new ResourceLocation("mazesmod:test"));
-		LootParams param = new LootParams.Builder(level).create(LootContextParamSet.builder().build());
+		ArrayList<ChunkPos> ckpos = new ArrayList<>();
 		for(BlockPos c : root.chests){
 			pos = pos.set(c.getX() + zeropos.getX(), c.getY() + zeropos.getY(), c.getZ() + zeropos.getZ());
-			level.setChunkForced(pos.getX() >> 4, pos.getZ() >> 4, true);
+			ChunkPos ckp = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
+			if(!ckpos.contains(ckp)) level.setChunkForced(ckp.x, ckp.z, true);
 			ChestBlockEntity chest = (ChestBlockEntity)level.getExistingBlockEntity(pos);
-			if(chest != null) table.fill(chest, param, 0);
+			if(chest != null){
+				chest.clearContent();
+				chest.setLootTable(new ResourceLocation("mazesmod", root.id), 0);
+			}
 			else MazesMod.LOGGER.info(pos.toShortString() + " / " + level.dimension().location() + " has no chest.");
-			level.setChunkForced(pos.getX() >> 4, pos.getZ() >> 4, false);
+		}
+		for(ChunkPos ckp : ckpos){
+			try{
+				level.setChunkForced(ckp.x, ckp.z, false);
+			}
+			catch(Throwable e){
+				e.printStackTrace();
+			}
 		}
 	}
 

@@ -29,6 +29,7 @@ public class MazeInst {
 	public ArrayList<Player> players = new ArrayList<>();
 	public BlockPos zeropos;
 	public final UUID uuid;
+	public boolean paused;
 
 	public MazeInst(UUID id, Maze maze, ChunkPos s, ChunkPos e){
 		root = maze;

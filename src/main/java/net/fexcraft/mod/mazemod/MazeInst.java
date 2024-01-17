@@ -65,6 +65,7 @@ public class MazeInst {
 		ServerLevel level = server.getLevel(MazesMod.MAZES_LEVEL);
 		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 		ArrayList<ChunkPos> ckpos = new ArrayList<>();
+		String lt = root.loottable == null || root.loottable.length() == 0 ? root.id : root.loottable;
 		for(BlockPos c : root.chests){
 			pos = pos.set(c.getX() + zeropos.getX(), c.getY() + zeropos.getY(), c.getZ() + zeropos.getZ());
 			ChunkPos ckp = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
@@ -72,7 +73,7 @@ public class MazeInst {
 			ChestBlockEntity chest = (ChestBlockEntity)level.getExistingBlockEntity(pos);
 			if(chest != null){
 				chest.clearContent();
-				chest.setLootTable(new ResourceLocation("mazesmod", root.id), 0);
+				chest.setLootTable(new ResourceLocation("mazesmod", lt), 0);
 			}
 			else MazesMod.LOGGER.info(pos.toShortString() + " / " + level.dimension().location() + " has no chest.");
 		}

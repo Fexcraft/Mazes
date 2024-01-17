@@ -27,9 +27,8 @@ public class PlayerData {
 	public void teleport(Player player, MazeInst to){
 		try{
 			ServerLevel lvl = ServerLifecycleHooks.getCurrentServer().getLevel(MAZES_LEVEL);
-			player.moveTo(to.zeropos.offset(to.root.entry.get(0)).getCenter());
 			instin = to;
-			Entity entity = player.changeDimension(lvl, new ITeleporter(){});
+			Entity entity = player.changeDimension(lvl, new Teleporter(to.zeropos.offset(to.root.entry.get(0)).getCenter()));
 			if(entity != null) instin.players.add((Player)entity);
 		}
 		catch(Throwable e){
@@ -42,8 +41,7 @@ public class PlayerData {
 			ServerLevel lvl = ServerLifecycleHooks.getCurrentServer().overworld();
 			BlockPos pos = instin.root.gate_out == null ? instin.root.gate_in : instin.root.gate_out;
 			instin.players.remove(player);
-			player.moveTo(pos.getCenter());
-			player.changeDimension(lvl, new ITeleporter(){});
+			player.changeDimension(lvl, new Teleporter(pos.getCenter()));
 		}
 		catch(Throwable e){
 			e.printStackTrace();

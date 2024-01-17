@@ -33,6 +33,7 @@ public class Maze {
 	//
 	public int instances = 1;
 	public int cooldown = 60;
+	public String loottable;
 
 	public Maze(String nid){
 		id = nid;
@@ -60,6 +61,7 @@ public class Maze {
 				chests.add(frArray(val.asArray()));
 			});
 		}
+		loottable = map.getString("loot_table", null);
 	}
 
 	public File getStatesFile(){
@@ -98,6 +100,7 @@ public class Maze {
 			for(BlockPos pos : chests) array.add(toArray(pos));
 			map.add("chests", array);
 		}
+		if(loottable != null && loottable.length() > 0) map.add("loot_table", loottable);
 		return map;
 	}
 

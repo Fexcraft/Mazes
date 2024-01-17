@@ -367,7 +367,7 @@ public class MazesMod {
                     .then(literal("delete")
                         .then(argument("idx", StringArgumentType.word()).suggests(MAZE_INST_SUGGESTER)
                         .executes(context -> {
-                            UUID idx = UUID.fromString(context.getArgument("id", String.class));
+                            UUID idx = UUID.fromString(context.getArgument("idx", String.class));
                             if(!MazeManager.INSTANCES.containsKey(idx)){
                                 context.getSource().sendFailure(Component.literal("Invalid UUID specified."));
                                 return 0;

@@ -375,7 +375,7 @@ public class MazesMod {
                             MazeInst inst = MazeManager.INSTANCES.get(idx);
                             if(inst.players.size() > 0){
                                 context.getSource().sendSystemMessage(Component.literal("There are still players in the maze."));
-                                context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst stop " + idx + "'"));
+                                context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst pause " + idx + "'"));
                                 return 0;
                             }
                             MazeManager.INSTANCES.remove(inst);
@@ -384,12 +384,37 @@ public class MazesMod {
                             return 0;
                         })
                     ))
-                    .then(literal("stop")
+                    .then(literal("pause")
                         .then(argument("idx", StringArgumentType.word()).suggests(MAZE_INST_SUGGESTER)
                         .executes(context -> {
-                            UUID idx = UUID.fromString(context.getArgument("id", String.class));
+                            UUID idx = UUID.fromString(context.getArgument("idx", String.class));
                             MazeInst inst = MazeManager.INSTANCES.get(idx);
-                            //
+                            if(inst == null){
+                                context.getSource().sendFailure(Component.literal("Instance not found."));
+                                return 0;
+                            }
+                            for(Player player : inst.players){
+                                PlayerData data = MazeManager.getPlayerData(player);
+                                data.teleport(player);
+                                player.sendSystemMessage(Component.literal("Instance closed down for maintenance."));
+                            }
+                            inst.players.clear();
+                            inst.paused = true;
+                            context.getSource().sendSystemMessage(Component.literal("Instance paused. Note it resumes automatically on server restart."));
+                            return 0;
+                        })
+                    ))
+                    .then(literal("resume")
+                        .then(argument("idx", StringArgumentType.word()).suggests(MAZE_INST_SUGGESTER)
+                        .executes(context -> {
+                            UUID idx = UUID.fromString(context.getArgument("idx", String.class));
+                            MazeInst inst = MazeManager.INSTANCES.get(idx);
+                            if(inst == null){
+                                context.getSource().sendFailure(Component.literal("Instance not found."));
+                                return 0;
+                            }
+                            inst.paused = false;
+                            context.getSource().sendSystemMessage(Component.literal("Instance is back in service."));
                             return 0;
                         })
                     ))

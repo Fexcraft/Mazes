@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.server.ServerLifecycleHooks;
 
 /**
  * @author Ferdinand Calo' (FEX___96)
@@ -16,8 +17,8 @@ import net.minecraft.world.entity.player.Player;
 public class Parties {
 
 	public static HashMap<UUID, String> CODES = new HashMap<>();
-	public static HashMap<UUID, ArrayList<Player>> PARTIES = new HashMap<>();
-	public static HashMap<UUID, Player> PARTYIN = new HashMap<>();
+	public static HashMap<UUID, ArrayList<UUID>> PARTIES = new HashMap<>();
+	public static HashMap<UUID, PartyLead> PARTYIN = new HashMap<>();
 
 	public static void putNewCode(UUID id){
 		String newcode = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
@@ -32,21 +33,25 @@ public class Parties {
 
 	public static void disband(ServerPlayer lead, UUID id){
 		var party = Parties.PARTIES.remove(id);
-		for(Player player : party){
-			PARTYIN.remove(player.getGameProfile().getId());
-			player.sendSystemMessage(Component.literal(lead.getDisplayName() + " disbanded the party."));
+		Player ply = null;
+		for(UUID player : party){
+			PARTYIN.remove(player);
+			ply = ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(player);
+			if(ply != null) ply.sendSystemMessage(Component.literal(lead.getDisplayName() + " disbanded the party."));
 		}
 		CODES.remove(id);
 	}
 
 	public static void leave(ServerPlayer player){
-		Player in = PARTYIN.get(player.getGameProfile().getId());
-		var party = PARTIES.get(in.getGameProfile().getId());
+		PartyLead in = PARTYIN.get(player.getGameProfile().getId());
+		Player mem = null;
+		var party = PARTIES.get(in.uuid);
 		party.remove(player);
-		for(Player member : party){
-			member.sendSystemMessage(Component.literal(player.getDisplayName() + " left the party."));
+		for(UUID member : party){
+			mem = ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayer(member);
+			if(mem != null) mem.sendSystemMessage(Component.literal(player.getDisplayName() + " left the party."));
 		}
-		player.sendSystemMessage(Component.literal("You left " + in.getDisplayName() + "'s party."));
+		player.sendSystemMessage(Component.literal("You left " + in.name + "'s party."));
 	}
 
 	public static UUID get(String code){
@@ -60,11 +65,16 @@ public class Parties {
 
 	public static void join(MinecraftServer server, ServerPlayer player, UUID lead){
 		var party = PARTIES.get(lead);
-		for(Player member : party){
-			member.sendSystemMessage(Component.literal(player.getDisplayName() + " joins the party."));
+		Player mem = null;
+		for(UUID member : party){
+			mem = server.getPlayerList().getPlayer(member);
+			if(mem != null) mem.sendSystemMessage(Component.literal(player.getDisplayName() + " joins the party."));
 		}
-		party.add(player);
-		PARTYIN.put(player.getGameProfile().getId(), server.getPlayerList().getPlayer(lead));
+		party.add(player.getGameProfile().getId());
+		Player pead = server.getPlayerList().getPlayer(lead);
+		PARTYIN.put(player.getGameProfile().getId(), new PartyLead(lead, pead.getGameProfile().getName()));
 	}
+
+	public record PartyLead(UUID uuid, String name){}
 
 }

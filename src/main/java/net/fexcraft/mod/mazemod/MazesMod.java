@@ -378,7 +378,7 @@ public class MazesMod {
                                 context.getSource().sendSystemMessage(Component.literal("You can stop it using '/mz inst pause " + idx + "'"));
                                 return 0;
                             }
-                            MazeManager.INSTANCES.remove(inst);
+                            MazeManager.INSTANCES.remove(idx);
                             inst.getFile().delete();
                             context.getSource().sendSystemMessage(Component.literal("Instance with index '" + idx + "' removed."));
                             return 0;

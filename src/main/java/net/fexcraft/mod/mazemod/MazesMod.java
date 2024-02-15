@@ -253,7 +253,7 @@ public class MazesMod {
                         .executes(context -> {
                             Maze maze = MazeManager.MAZES.get(context.getArgument("id", String.class));
                             if(maze != null){
-                                maze.instances = context.getArgument("value", Integer.class);
+                                maze.cooldown = context.getArgument("value", Integer.class);
                                 context.getSource().sendSystemMessage(Component.literal("Maze cooldown (seconds) updated to " + maze.instances));
                             }
                             else{
